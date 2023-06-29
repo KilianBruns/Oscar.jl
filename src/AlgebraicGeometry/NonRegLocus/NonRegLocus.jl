@@ -8,7 +8,7 @@ export integer_generator
 export interesting_primes
 export replace_coeffs
 export hasse_deriv
-#export ideal_diff
+export ideal_diff
 
 export loc_greq_2
 export loc_greq_b
@@ -499,10 +499,17 @@ function ideal_diff(IZ::IdealQL, IX::IdealQL)
 				A = adjugate(M) # transposed cofactor matrix of M
 				y = system_of_parameters(R, member, L1[member][2], coDimZ)
 				F = [f for f in gens(IX) if !(f in IZ)]
-				IX_deriv = IX_deriv + [pseudo_diff(f, j, A, detM, IZ, y) for j in 1:length(y) for f in F if !(is_zero(pseudo_diff(f, j, A, detM, IZ, y)))]
+				IX_deriv_temp = [pseudo_diff(f, j, A, detM, IZ, y) for j in 1:length(y) for f in F if !(is_zero(pseudo_diff(f, j, A, detM, IZ, y)))]
+				IX_deriv = vcat(IX_deriv, IX_deriv_temp)
+				# don't know how to "saturate a vector". Good bye time efficiency. Also: Bye bye units.
+				for i in 1:length(IX_deriv)
+					IX_deriv[i] = gens(saturation(ideal(R, IX_deriv[i]), ideal(R, [detM])))[1]
+				end
 				# Itemp = saturation(Itemp, ideal(R, detM))
+				# es muss hier saturiert werden, da ja bezüglich detM saturiert wird
 			end
-			IX_deriv = gens(saturation(ideal(R, IX_deriv), ideal(R, detM)))
+			# IX_deriv = gens(saturation(ideal(R, IX_deriv), ideal(R, detM)))
+			# saturation(ideal(R, [x + z, x^2, x*z^3]), ideal(R, [x]))
 			return IX_deriv
 		end
 	elseif characteristic(baseRing) >= 1
@@ -514,7 +521,6 @@ function ideal_diff(IZ::IdealQL, IX::IdealQL)
 	else
 		return ("How did i get here?")
 	end
-
 end
 
 ####################################################################################
@@ -670,7 +676,7 @@ end
 # OUTPUT:	true/false whether X is/isn't regular
 
 function is_regular(IZ::IdealQL, IX::IdealQL)
-	println("1")
+	println("3")
 	R = base_ring(IZ)
 	# return one(R) in loc_greq_2(IZ::IdealQL, IX::IdealQL) ? true : false
     # Doesn't work like that. See example IX = <x, y^2 + z^2>
@@ -679,94 +685,11 @@ function is_regular(IZ::IdealQL, IX::IdealQL)
 	
 	if one(R) in D_IX
 		# finde f1, ..., fs sodass die Vereinigung der Schnitte von X mit D(fi) = X sind
-		F = [f for f in D_IX if !(f in gens(IX))]
-
+		# F = [f for f in D_IX if !(f in gens(IX))]
+		println("one in D_IX")
 	else
 		return false
 	end
-end
-
-function is_regular(IZ::IdealQL, IX::IdealQL)
-	println("2")
-	R = base_ring(IZ)
-	
-	base_ring(IX) === R || error("IZ and IX need to be defined in the same ring")
-	IZ !== IX || error("IZ and IX cannot be equal.")  # != isn't enough for MPolyQuoLocalizedIdeal
-	issubset(IZ,IX) || error("IZ needs to be a subset of IX.")
-
-	Itemp = IX
-	n = ngens(R)
-
-	if IZ == ideal(R, [zero(R)]) # IZ == <0>
-		# IX in PolyRing over Field
-		if base_ring(R) == QQ
-			f = gens(Itemp)
-			Itemp = Itemp + ideal(R, [derivative(lifted_numerator(g),i) for i=1:n for g in f]) 
-			if one(R) in Itemp
-			    return true
-			end
-		elseif base_ring(R) == ZZ
-			DiffList = hasse_deriv(IZ,IX) # no iteration needed, hasse_deriv already returns all derivatives
-			if one(R) in DiffList[2]
-				return true
-			end
-		else
-
-		end
-	else # IZ != <0>
-		if base_ring(R) == QQ
-			coDimZ = codimension(IZ)
-			JZ = transpose(jacobi_matrix(gens(IZ)))
-			L1 = generate_L1(coDimZ, JZ, IX, IZ)
-			for member in 1:length(L1)
-				Iold = ideal(R, [zero(R)])
-				thisord = 0
-				M = L1[member][1]
-				detM = det(M)
-				A = adjugate(M) # transposed cofactor matrix of M
-				y = system_of_parameters(R, member, L1[member][2], coDimZ)
-				s = length(y)
-				# getting generators of IX which aren't generating IZ
-				F = empty(gens(IX))
-				Ftemp = [reduce(f, gens(IZ)) for f in gens(IX)]
-				[f==zero(R) ? true : push!(F, f) for f in Ftemp];
-				Itemp = IX
-				while (one(R) in (Itemp + IZ)) # reicht es hier einmal abzuleiten und auf eins zu prüfen, wie bei den oberen Fällen auch?
-					Iold = Itemp
-					Itemp = Itemp + ideal(R, [pseudo_diff(f, j, A, detM, IZ, y) for f in F for j in 1:s])
-					Itemp = saturation(Itemp, ideal(R, detM))
-					thisord = thisord + 1
-				end
-				# check whether its nessecary to glue components
-				if thisord >= maxord
-					if thisord == maxord
-						Imax = intersect(Imax, Iold) # glue components together
-					else	# change maxord and ideal of maxorderlocus
-						maxord = thisord
-						Imax = Iold
-					end
-				end
-			end
-		elseif base_ring(R) == ZZ
-			coDimZ = codimension(IZ)
-			JZ = transpose(jacobi_matrix(gens(IZ)))
-			L1 = generate_L1(coDimZ, JZ, IX, IZ)
-			for member in 1:length(L1)
-				M = L1[member][1]
-				detM = det(M)
-				A = adjugate(M)
-				colIndices = L1[member][2]
-				y = system_of_parameters(R, member, colIndices, coDimZ)
-				DiffList = hasse_deriv(IZ, IX, y, M)
-				if one(R) in DiffList[2]
-					return true  # nicht sicher, ob ich hier schon abfragen kann... wahrscheinlich müssen die erst verklebt werden
-				end
-			end
-		else
-
-		end
-	end
-	return false
 end
 
 ####################################################################################
