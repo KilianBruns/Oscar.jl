@@ -463,64 +463,62 @@ end
 # OUTPUT:	A vector with derivatives of generators of IX
 
 function ideal_diff(IZ::IdealQL, IX::IdealQL)
-	R = base_ring(IZ)
-	baseRing = base_ring(R)
-
-	if baseRing == ZZ
-		if is_zero(IZ)
-			# here im getting ideals where a prime already had been replaced by a new variable P. Hence this is a normal derivation
-			return [f for f in minors(jacobi_matrix(gens(IX)), 1) if !(is_zero(f))]
-		else
-			coDimZ = codimension(IZ)
-			JZ = transpose(jacobi_matrix(gens(IZ)))
-			L1 = generate_L1(coDimZ, JZ, IX, IZ)
-			IX_deriv = empty([gens(IX)[1]])
-			for member in 1:length(L1)
-				M = L1[member][1]
-				detM = det(M)
-				A = adjugate(M)
-				y = system_of_parameters(Rtemp, member, L1[member][2], coDimZ)
-				F = [f for f in gens(IX) if !(f in IZ)]
-				IX_deriv = IX_deriv + [pseudo_diff(f, j, A, detM, IZ, y) for j in 1:length(y) for f in F if !(is_zero(pseudo_diff(f, j, A, detM, IZ, y)))]
-			end
-			return IX_deriv 
-		end
-	elseif characteristic(baseRing) == 0
-		if is_zero(IZ)
-			return [f for f in minors(jacobi_matrix(gens(IX)), 1) if !(is_zero(f))]
-		else
-			coDimZ = codimension(IZ)
-			JZ = transpose(jacobi_matrix(gens(IZ)))
-			L1 = generate_L1(coDimZ, JZ, IX, IZ)
-			IX_deriv = empty([gens(IX)[1]])
-			for member in 1:length(L1)
-				M = L1[member][1]
-				detM = det(M)
-				A = adjugate(M) # transposed cofactor matrix of M
-				y = system_of_parameters(R, member, L1[member][2], coDimZ)
-				F = [f for f in gens(IX) if !(f in IZ)]
-				IX_deriv_temp = [pseudo_diff(f, j, A, detM, IZ, y) for j in 1:length(y) for f in F if !(is_zero(pseudo_diff(f, j, A, detM, IZ, y)))]
-				IX_deriv = vcat(IX_deriv, IX_deriv_temp)
-				# don't know how to "saturate a vector". Good bye time efficiency. Also: Bye bye units.
-				for i in 1:length(IX_deriv)
-					IX_deriv[i] = gens(saturation(ideal(R, IX_deriv[i]), ideal(R, [detM])))[1]
-				end
-				# Itemp = saturation(Itemp, ideal(R, detM))
-				# es muss hier saturiert werden, da ja bezüglich detM saturiert wird
-			end
-			# IX_deriv = gens(saturation(ideal(R, IX_deriv), ideal(R, detM)))
-			# saturation(ideal(R, [x + z, x^2, x*z^3]), ideal(R, [x]))
-			return IX_deriv
-		end
-	elseif characteristic(baseRing) >= 1
-		if is_zero(IZ)
-			return [f for f in minors(jacobi_matrix(gens(IX)), 1) if !(is_zero(f))]
-		else
-
-		end
-	else
-		return ("How did i get here?")
-	end
+  R = base_ring(IZ)
+  baseRing = base_ring(R)
+  if baseRing == ZZ
+    if is_zero(IZ)
+      # here im getting ideals where a prime already had been replaced by a new variable P. Hence this is a normal derivation
+      return [f for f in minors(jacobi_matrix(gens(IX)), 1) if !(is_zero(f))]
+    else
+      coDimZ = codimension(IZ)
+      JZ = transpose(jacobi_matrix(gens(IZ)))
+      L1 = generate_L1(coDimZ, JZ, IX, IZ)
+      IX_deriv = empty([gens(IX)[1]])
+      for member in 1:length(L1)
+        M = L1[member][1]
+        detM = det(M)
+        A = adjugate(M)
+        y = system_of_parameters(Rtemp, member, L1[member][2], coDimZ)
+        F = [f for f in gens(IX) if !(f in IZ)]
+        IX_deriv = IX_deriv + [pseudo_diff(f, j, A, detM, IZ, y) for j in 1:length(y) for f in F if !(is_zero(pseudo_diff(f, j, A, detM, IZ, y)))]
+      end
+      return IX_deriv 
+    end
+  elseif characteristic(baseRing) == 0
+    if is_zero(IZ)
+      return [f for f in minors(jacobi_matrix(gens(IX)), 1) if !(is_zero(f))]
+    else
+      coDimZ = codimension(IZ)
+      JZ = transpose(jacobi_matrix(gens(IZ)))
+      L1 = generate_L1(coDimZ, JZ, IX, IZ)
+      IX_deriv = empty([gens(IX)[1]])
+      for member in 1:length(L1)
+        M = L1[member][1]
+        detM = det(M)
+        A = adjugate(M) # transposed cofactor matrix of M
+        y = system_of_parameters(R, member, L1[member][2], coDimZ)
+        F = [f for f in gens(IX) if !(f in IZ)]
+        IX_deriv_temp = [pseudo_diff(f, j, A, detM, IZ, y) for j in 1:length(y) for f in F if !(is_zero(pseudo_diff(f, j, A, detM, IZ, y)))]
+        IX_deriv = vcat(IX_deriv, IX_deriv_temp)
+        # don't know how to "saturate a vector". Good bye time efficiency. Also: Bye bye units.
+        for i in 1:length(IX_deriv)
+          IX_deriv[i] = gens(saturation(ideal(R, IX_deriv[i]), ideal(R, [detM])))[1]
+        end
+        # Itemp = saturation(Itemp, ideal(R, detM))
+        # es muss hier saturiert werden, da ja bezüglich detM saturiert wird
+      end
+      # IX_deriv = gens(saturation(ideal(R, IX_deriv), ideal(R, detM)))
+      # saturation(ideal(R, [x + z, x^2, x*z^3]), ideal(R, [x]))
+      return IX_deriv
+    end
+  elseif characteristic(baseRing) >= 1
+    if is_zero(IZ)
+      return [f for f in minors(jacobi_matrix(gens(IX)), 1) if !(is_zero(f))]
+    else
+    end
+  else
+    return ("How did i get here?")
+  end
 end
 
 ####################################################################################
