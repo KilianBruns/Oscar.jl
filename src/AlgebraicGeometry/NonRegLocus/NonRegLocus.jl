@@ -27,15 +27,15 @@ RingQL = Union{MPolyRing,MPolyLocRing,MPolyQuoRing,MPolyQuoLocRing}
 # Name:		codimension(I)
 #
 # INPUT:	Ideal I 
-# OUTPUT:	Dimension of I (Krull dimension)
+# OUTPUT:	Dimension of I
 
 function codimension(I)
-	R = base_ring(I)
-	if base_ring(R) == ZZ	# polynomial ring defined over ZZ
-		return (codim(I) + 1)
-	else					# polynomial ring defined over a field
-		return (codim(I))
-	end
+  R = base_ring(I)
+  if base_ring(R) == ZZ	# polynomial ring defined over ZZ
+    return (codim(I) + 1)
+  else  # polynomial ring defined over a field
+    return (codim(I))
+  end
 end
 
 ####################################################################################
@@ -51,22 +51,22 @@ end
 
 function system_of_parameters(R, member::Int64, colIndices, coDimZ::Int64)
 
-	n = ngens(R)
-	y = empty(gens(R))
-	# Bestimme y ueber colIndices, die nicht in Spaltenvector[Spaltennummer] benutzt werden  
-	NumbColIndices = length(colIndices)
-	NumbSpaltenvectorM = member % NumbColIndices # Zugrundeliegender Spaltenvektor aus JZ
-	NumbSpaltenvectorM == 0 && (NumbSpaltenvectorM = NumbColIndices)
-	Spaltenvector = colIndices[NumbSpaltenvectorM]  
-	
-	for j in 1:n # R = base_ring(IZ)
-		equal = 0
-		for k in 1:coDimZ
-			j == Spaltenvector[k] && (equal = 1)
-		end
-		equal == 0 && (y = push!(y, gens(R)[j])) # R = base_ring(IZ)
-	end  
-	return (y)
+  n = ngens(R)
+  y = empty(gens(R))
+  # Bestimme y ueber colIndices, die nicht in Spaltenvector[Spaltennummer] benutzt werden  
+  NumbColIndices = length(colIndices)
+  NumbSpaltenvectorM = member % NumbColIndices # Zugrundeliegender Spaltenvektor aus JZ
+  NumbSpaltenvectorM == 0 && (NumbSpaltenvectorM = NumbColIndices)
+  Spaltenvector = colIndices[NumbSpaltenvectorM]  
+
+  for j in 1:n
+    equal = 0
+    for k in 1:coDimZ
+      j == Spaltenvector[k] && (equal = 1)
+    end
+    equal == 0 && (y = push!(y, gens(R)[j]))
+  end
+  return (y)
 end
 
 ####################################################################################
@@ -76,11 +76,12 @@ end
 # INPUT:	square matrix M 
 # OUTPUT:	adjugate matrix of M
 
+# function provided by Max Horn. Thx
 function adjugate(M)
-	c = charpoly(M)
-	f = divexact(c - c(0), gen(parent(c)))
-	a = f(M)
-	iseven(nrows(M)) ? -a : a
+  c = charpoly(M)
+  f = divexact(c - c(0), gen(parent(c)))
+  a = f(M)
+  iseven(nrows(M)) ? -a : a
 end
 
 ####################################################################################
@@ -91,33 +92,31 @@ end
 # OUTPUT:	
 
 function pseudo_diff(f, j, A, q, I::IdealQL, y::Vector)
-	R = base_ring(I)
+  R = base_ring(I)
 
-	# TODO: check for correct input?
-	gensR = gens(R)
-	Istd = standard_basis(I)
+  # Check for correct input? No, it'll be checked in main functions.
+  gensR = gens(R)
+  Istd = standard_basis(I)
 
-	RetPoly = q * derivative(f, y[j])
-	F = reduce(f, gens(Istd))
-	n = ngens(R)
+  RetPoly = q * derivative(f, y[j])
+  F = reduce(f, gens(Istd))
+  n = ngens(R)
 
-	# Generating a list of Variables which aren't in parametersystem y
-	OtherVars = empty(gensR)
-	for k in 1:n
-		gensR[k] in y || push!(OtherVars, gensR[k])
-	end
+  # Generating a list of Variables which aren't in parametersystem y
+  OtherVars = empty(gensR)
+  for k in 1:n
+    gensR[k] in y || push!(OtherVars, gensR[k])
+  end
 
-	# See formular in remark 4.2
-	for k in 1:ncols(A)
-		for l in 1:nrows(A)
-			SubPoly = derivative(gens(I)[l], y[j]) * A[l,k] * derivative(F, OtherVars[k])
-			SubPoly = reduce(SubPoly, gens(Istd))
-			RetPoly = RetPoly - SubPoly
-		end
-	end
-
-	return (RetPoly)
-
+  # See formular in remark 4.2
+  for k in 1:ncols(A)
+    for l in 1:nrows(A)
+      SubPoly = derivative(gens(I)[l], y[j]) * A[l,k] * derivative(F, OtherVars[k])
+      SubPoly = reduce(SubPoly, gens(Istd))
+      RetPoly = RetPoly - SubPoly
+    end
+  end
+  return (RetPoly)
 end
 
 ####################################################################################
@@ -129,22 +128,22 @@ end
 
 # returns a 3-element vector containing (1) a vector of primefactors, (2) a vector of their exponents, (3) sign(N) 
 function primefactors(N)
-	factors = factor(N)
-	u = unit(factors)
-	F = sort(collect(factors))
-	return ([f[1] for f in F], [f[2] for f in F], u)
+  factors = factor(N)
+  u = unit(factors)
+  F = sort(collect(factors))
+  return ([f[1] for f in F], [f[2] for f in F], u)
 end
 
 # to get a vector of all prime factors of the coefficients of all generators of an ideal
 function primefactors(I::IdealQL)
-	returnList = empty([zero(base_ring(base_ring(I)))])
-	for g in gens(I)
-		for c in coefficients(g)
-			returnList = union(returnList, primefactors(c)[1])
-			#println("# "returnList)
-		end
-	end
-	return sort(returnList)
+  returnList = empty([zero(base_ring(base_ring(I)))])
+  for g in gens(I)
+    for c in coefficients(g)
+      returnList = union(returnList, primefactors(c)[1])
+      #println("# "returnList)
+    end
+  end
+  return sort(returnList)
 end
 
 ####################################################################################
@@ -155,61 +154,52 @@ end
 # OUTPUT:	
 
 function generate_L1(coDimZ::Int64, JZ, IX::IdealQL, IZ::IdealQL)
-
-	R = base_ring(IZ)
-	# Checking for correct input. # maybe not necessary bc already checked in other function
-	IZ !== IX || error("IZ and IX cannot be equal.")
-	issubset(IZ,IX) || error("IZ needs to be a subset of IX.")
-	
-	maxcol = ncols(JZ)
-	maxrow = nrows(JZ)
-	colIndices_makeMatrix = AbstractAlgebra.combinations(1:maxcol, coDimZ) # Indices der Spaltenvektoren der Untermatrix
-	colIndices = reverse(AbstractAlgebra.combinations(1:maxcol, maxcol-coDimZ)) # Indices der Spaltenvektor, die nicht die Untermatrix bilden
-	# generate submatricies # corresponting entries of colIndices and subMatricies are those i need
-	subMatricies = [sub(JZ, Vector{Int64}(1:maxrow), indices) for indices in colIndices_makeMatrix]	
-	L1 = empty([subMatricies[1], colIndices[1]])
-	IXtemp = IX
-	for member in 1:length(subMatricies)
-		M = subMatricies[member]
-		detM = det(M)
-		if detM != zero(R)
-			# Ideal_detM = ideal(R, [detM])
-			IXtemp = IXtemp + ideal(R, [detM])
-			push!(L1, [subMatricies[member], colIndices[member]])
-			if radical_membership(one(R), IXtemp)
-				break
-			end
-		end
-	end
-	return L1
+  R = base_ring(IZ)
+  maxcol = ncols(JZ)
+  maxrow = nrows(JZ)
+  colIndices_makeMatrix = AbstractAlgebra.combinations(1:maxcol, coDimZ) # Indices der Spaltenvektoren der Untermatrix
+  colIndices = reverse(AbstractAlgebra.combinations(1:maxcol, maxcol-coDimZ)) # Indices der Spaltenvektor, die nicht die Untermatrix bilden
+  # generate submatricies # corresponting entries of colIndices and subMatricies are those i need
+  subMatricies = [sub(JZ, Vector{Int64}(1:maxrow), indices) for indices in colIndices_makeMatrix]	
+  L1 = empty([subMatricies[1], colIndices[1]])
+  IXtemp = IX
+  for member in 1:length(subMatricies)
+    M = subMatricies[member]
+    detM = det(M)
+    if detM != zero(R)
+      # Ideal_detM = ideal(R, [detM])
+      IXtemp = IXtemp + ideal(R, [detM])
+      push!(L1, [subMatricies[member], colIndices[member]])
+      if radical_membership(one(R), IXtemp)
+        break
+      end
+    end
+  end
+  return L1
 end
 
 # this it needed to get an covering for interesting_primes
 function generate_L1(coDimZ::Int64, JZ, IX::IdealQL, IZ::IdealQL, primeprod)
-
-	R = base_ring(IZ)
-	IZ !== IX || error("IZ and IX cannot be equal.")
-	issubset(IZ,IX) || error("IZ needs to be a subset of IX.")
-	
-	maxcol = ncols(JZ)
-	maxrow = nrows(JZ)
-	colIndices_makeMatrix = AbstractAlgebra.combinations(1:maxcol, coDimZ)
-	colIndices = reverse(AbstractAlgebra.combinations(1:maxcol, maxcol-coDimZ))
-	subMatricies = [sub(JZ, Vector{Int64}(1:maxrow), indices) for indices in colIndices_makeMatrix]	
-	L1 = empty([subMatricies[1], colIndices[1]])
-	IXtemp = IX + ideal(R, [primeprod])
-	for member in 1:length(subMatricies)
-		M = subMatricies[member]
-		detM = det(M)
-		if detM != zero(R)
-			IXtemp = IXtemp + ideal(R, [detM])
-			push!(L1, [subMatricies[member], colIndices[member]])
-			if radical_membership(one(R), IXtemp)
-				break
-			end
-		end
-	end
-	return L1
+  R = base_ring(IZ)
+  maxcol = ncols(JZ)
+  maxrow = nrows(JZ)
+  colIndices_makeMatrix = AbstractAlgebra.combinations(1:maxcol, coDimZ)
+  colIndices = reverse(AbstractAlgebra.combinations(1:maxcol, maxcol-coDimZ))
+  subMatricies = [sub(JZ, Vector{Int64}(1:maxrow), indices) for indices in colIndices_makeMatrix]	
+  L1 = empty([subMatricies[1], colIndices[1]])
+  IXtemp = IX + ideal(R, [primeprod])
+  for member in 1:length(subMatricies)
+    M = subMatricies[member]
+    detM = det(M)
+    if detM != zero(R)
+      IXtemp = IXtemp + ideal(R, [detM])
+      push!(L1, [subMatricies[member], colIndices[member]])
+      if radical_membership(one(R), IXtemp)
+        break
+      end
+    end
+  end
+  return L1
 end
 
 ####################################################################################
@@ -220,11 +210,9 @@ end
 # OUTPUT:	Ideal J, was den Schnitt von I mit dem Ring repräsentiert, über den der Polynomring definiert ist
 
 function integer_generator(I)
-	
-	vars = gens(base_ring(I))
-	J = eliminate(I, vars)  # eliminiere die Variablen des Polynomrings aus dem Ideal I
-	return (J)
-	
+  vars = gens(base_ring(I))
+  J = eliminate(I, vars)  # eliminiere die Variablen des Polynomrings aus dem Ideal I
+  return (J)
 end
 
 ####################################################################################
@@ -235,70 +223,66 @@ end
 # OUTPUT:	
 
 function interesting_primes(IZ::IdealQL, IX::IdealQL)
-	
-	# Checking for correct input. 
-	IZ != IX || error("IZ and IX cannot be equal.")
-	issubset(IZ,IX) || error("IZ needs to be a subset of IX.")
-	
-	R = base_ring(IZ)
-	Itemp = IX				# Muss für IZ != <O> geändert werden
-	n = ngens(R)
-	# resultList = empty(zero(base_ring(R)))
-	
-	Iint = integer_generator(IZ)
-	if !is_zero(Iint)
-		resultList = primefactors(leading_coefficient(gens(Iint)[1]))[1]
-		return (resultList)
-	end 
-	
-	Iint = ideal(R, [zero(R)]) # redundant bc of if statment above?
-	
-	# case IZ == <0>
-	if is_zero(IZ)
-		while is_zero(Iint)
-			r = ngens(Itemp)
-			f = gens(Itemp)
-			Itemp = Itemp + ideal([derivative(g,i) for i=1:n for g in f])
-			Iint = integer_generator(Itemp)
-		end
-		resultList = primefactors(leading_coefficient(gens(Iint)[1]))[1]
-		
-	# case IZ != <0>
-	else
-		# no need to union resultList with primefactors here, resultList was empty
-		resultList = primefactors(IZ)
-		coDimZ = codimension(IZ)
-		JZ = transpose(jacobi_matrix(gens(IZ)))
-		# may have to do this a diffrent way; not intersecting with D(p_1*...*p_alpha) yet
-		L1 = generate_L1(coDimZ, JZ, IX, IZ, prod(resultList)) # at this moment resultList only contains the primefactors of the coeffs of gens(IZ)
-		println("# ", "L1 = ", L1)
+  # Checking for correct input. 
+  IZ != IX || error("IZ and IX cannot be equal.")
+  issubset(IZ,IX) || error("IZ needs to be a subset of IX.")
 
-		gensItemp = empty(gens(IX))
-		for poly in gens(IX)
-			poly in IZ || push!(gensItemp, poly) # what if IZ = <x1> and IX = <x1, 15*x1> ?
-		end # gensItemp = [Generators of IX but not of IZ]
-		Itemp = ideal(R, gensItemp)
+  R = base_ring(IZ)
+  Itemp = IX				# Muss für IZ != <O> geändert werden
+  n = ngens(R)
+  # resultList = empty(zero(base_ring(R)))
 
-		for member in 1:length(L1)
-			println("# ", "member ", member)
-			y = system_of_parameters(R, member, L1[member][2], coDimZ)
-			println("# ", "system_of_parameters ready")
-			Iint = ideal(R, [zero(R)])
-			M = L1[member][1]
-			detM = det(M)
-			A = adjugate(M) # transposed cofactor matrix of M
-			while Iint == ideal(R, [zero(R)])
-				F = gens(Itemp)
-				Itemp = Itemp + ideal(R, [pseudo_diff(f, j, A, detM, IZ, y) for f in F for j in 1:length(y)])
-				# KLÄREN: Hier muss doch Itemp verändert werden oder nicht?
-				Iint = integer_generator(Itemp + IZ)
-				println("# Itemp = ", Itemp)
-			end
-			println("# ", "while finished")
-			one(R) in Iint || (resultList = union(resultList, primefactors(leading_coefficient(gens(Iint)[1]))[1]))
-		end
-	end	
-	return (resultList)
+  Iint = integer_generator(IZ)
+  if !is_zero(Iint)
+    resultList = primefactors(leading_coefficient(gens(Iint)[1]))[1]
+    return (resultList)
+  end 
+
+  Iint = ideal(R, [zero(R)]) # redundant bc of if statment above?
+
+  if is_zero(IZ) # case IZ == <0>
+    while is_zero(Iint)
+      r = ngens(Itemp)
+      f = gens(Itemp)
+      Itemp = Itemp + ideal([derivative(g,i) for i=1:n for g in f])
+      Iint = integer_generator(Itemp)
+    end
+    resultList = primefactors(leading_coefficient(gens(Iint)[1]))[1]
+  else # case IZ != <0>
+    # no need to union resultList with primefactors here, resultList was empty
+    resultList = primefactors(IZ)
+    coDimZ = codimension(IZ)
+    JZ = transpose(jacobi_matrix(gens(IZ)))
+    # may have to do this a diffrent way; not intersecting with D(p_1*...*p_alpha) yet
+    L1 = generate_L1(coDimZ, JZ, IX, IZ, prod(resultList)) # at this moment resultList only contains the primefactors of the coeffs of gens(IZ)
+    println("# ", "L1 = ", L1)
+
+    gensItemp = empty(gens(IX))
+    for poly in gens(IX)
+      poly in IZ || push!(gensItemp, poly) # what if IZ = <x1> and IX = <x1, 15*x1> ?
+    end # gensItemp = [Generators of IX but not of IZ]
+    Itemp = ideal(R, gensItemp)
+
+    for member in 1:length(L1)
+      println("# ", "member ", member)
+      y = system_of_parameters(R, member, L1[member][2], coDimZ)
+      println("# ", "system_of_parameters ready")
+      Iint = ideal(R, [zero(R)])
+      M = L1[member][1]
+      detM = det(M)
+      A = adjugate(M) # transposed cofactor matrix of M
+      while Iint == ideal(R, [zero(R)])
+        F = gens(Itemp)
+        Itemp = Itemp + ideal(R, [pseudo_diff(f, j, A, detM, IZ, y) for f in F for j in 1:length(y)])
+        # KLÄREN: Hier muss doch Itemp verändert werden oder nicht?
+        Iint = integer_generator(Itemp + IZ)
+        println("# Itemp = ", Itemp)
+      end
+      println("# ", "while finished")
+      one(R) in Iint || (resultList = union(resultList, primefactors(leading_coefficient(gens(Iint)[1]))[1]))
+    end
+  end	
+  return (resultList)
 end
 
 ####################################################################################
@@ -309,26 +293,26 @@ end
 # OUTPUT:	Ideal J which has all factors p replaced by a new variable P
 
 function replace_coeffs(I::IdealQL, p)  
-	R = base_ring(I)
-	n = ngens(R)
-	
-	# Defining new Ring with P as new variable
-	Rp, _ = polynomial_ring(base_ring(R), vcat(symbols(R), [:P]))
-	GenList = empty([zero(Rp)])
-	for f in gens(I)
-		g = evaluate(f, gens(Rp)[1:end-1]) # replace old variables with new variables
-		gg = zero(Rp)
-		# replaceing prime p with variable P
-		for term in terms(g) # spliting up terms in coefficient and monomial
-			c = leading_coefficient(term)
-			m = monomial(term, 1) # only one term anyway
-			e, r = remove(c, p) # e = exponent of p in term, r = c/(p^e)
-			gg = gg + r*gens(Rp)[end]^e*m # puzzle terms back together
-			# println(r*gens(Rp)[end]^e*m) 
-		end
-		GenList = push!(GenList, gg)
-	end
-	return (ideal(Rp, GenList))
+  R = base_ring(I)
+  n = ngens(R)
+
+  # Defining new Ring with P as new variable
+  Rp, _ = polynomial_ring(base_ring(R), vcat(symbols(R), [:P]))
+  GenList = empty([zero(Rp)])
+  for f in gens(I)
+    g = evaluate(f, gens(Rp)[1:end-1]) # replace old variables with new variables
+    gg = zero(Rp)
+    # replaceing prime p with variable P
+    for term in terms(g) # spliting up terms in coefficient and monomial
+      c = leading_coefficient(term)
+      m = monomial(term, 1) # only one term anyway
+      e, r = remove(c, p) # e = exponent of p in term, r = c/(p^e)
+      gg = gg + r*gens(Rp)[end]^e*m # puzzle terms back together
+      # println(r*gens(Rp)[end]^e*m) 
+    end
+    GenList = push!(GenList, gg)
+  end
+  return (ideal(Rp, GenList))
 end
 
 ####################################################################################
@@ -341,45 +325,44 @@ end
 # PROBLEM: Some issues if the Ring IX and IZ are from has a certain name or variable names.
 
 function hasse_deriv(IZ,IX)
-	
-	R = base_ring(IZ)
+  R = base_ring(IZ)
 
-	# Checking for correct input. 
-	IZ !== IX || error("IZ and IX cannot be equal.")
-	issubset(IZ,IX) || error("IZ needs to be a subset of IX.")
-	gens(IZ) == [zero(R)] || error("IZ needs to be the zero ideal.")
-	
-	n = ngens(R) # number of variables of R
-	r = ngens(IX) # number of generators of IX
-	
-	# New ring with y and t  # might use other names for variables to avoid using same names as in R
-	# SOLUTION: Don't give them names, just write "_". This way there can't be any problems with double naming. 
-	Rtemp, _ = polynomial_ring(base_ring(R), "y" => 1:n, "t" => 1:n)
-	# Inklusionsmorphismus vom alten zum neuen Ring 
-	F = gens(IX)
-	for j in 1:r
-		F[j] = evaluate(F[j], gens(Rtemp)[1:n] + gens(Rtemp)[n+1:2n]) # F(x) -> F(y+t)
-	end
-	# F = [evaluate(F[j], gens(Rtemp)[1:n] + gens(Rtemp)[n+1:2n]) for j in 1:r]
-	
-	i=1 
-	# QUESTION: Should tempid be an ideal or a list/vector?
-	tempid = gens(IX)
-	RetList = [IX]
-	varR = vcat(gens(R), ones(ZZRingElem, n)) # TODO: fmpz gibts nicht mehr wenn der dev-tree genutzt wird # fmpz -> ZZRingElem, fmpq -> QQFieldElem
-	
-	while i == 1 || tempid != gens(RetList[i-1])  # Comparing ideals was a bad idea # A little loophole: 2nd condition would throw an error at the first iteration but because i==1 is true the 2nd conditions check is skipped.
-		for p in F
-			for term in terms(p)
-				if sum(degrees(term)[n+1:2n]) == i
-					tempid = vcat(tempid, [evaluate(term, varR)]) # maybe use vector operations for shorter code?
-				end
-			end
-		end		
-		i = i + 1
-		RetList = vcat(RetList, ideal(R, tempid))
-	end
-	return (RetList[1:i-1])
+  # Checking for correct input. 
+  IZ !== IX || error("IZ and IX cannot be equal.")
+  issubset(IZ,IX) || error("IZ needs to be a subset of IX.")
+  gens(IZ) == [zero(R)] || error("IZ needs to be the zero ideal.")
+
+  n = ngens(R) # number of variables of R
+  r = ngens(IX) # number of generators of IX
+
+  # New ring with y and t  # might use other names for variables to avoid using same names as in R
+  # SOLUTION: Don't give them names, just write "_". This way there can't be any problems with double naming. 
+  Rtemp, _ = polynomial_ring(base_ring(R), "y" => 1:n, "t" => 1:n)
+  # Inklusionsmorphismus vom alten zum neuen Ring 
+  F = gens(IX)
+  for j in 1:r
+    F[j] = evaluate(F[j], gens(Rtemp)[1:n] + gens(Rtemp)[n+1:2n]) # F(x) -> F(y+t)
+  end
+  # F = [evaluate(F[j], gens(Rtemp)[1:n] + gens(Rtemp)[n+1:2n]) for j in 1:r]
+
+  i=1 
+  # QUESTION: Should tempid be an ideal or a list/vector?
+  tempid = gens(IX)
+  RetList = [IX]
+  varR = vcat(gens(R), ones(ZZRingElem, n)) # TODO: fmpz gibts nicht mehr wenn der dev-tree genutzt wird # fmpz -> ZZRingElem, fmpq -> QQFieldElem
+
+  while i == 1 || tempid != gens(RetList[i-1])  # Comparing ideals was a bad idea # A little loophole: 2nd condition would throw an error at the first iteration but because i==1 is true the 2nd conditions check is skipped.
+    for p in F
+      for term in terms(p)
+        if sum(degrees(term)[n+1:2n]) == i
+          tempid = vcat(tempid, [evaluate(term, varR)]) # maybe use vector operations for shorter code?
+        end
+      end
+    end
+    i = i + 1
+    RetList = vcat(RetList, ideal(R, tempid))
+  end
+  return (RetList[1:i-1])
 end
 
 ####################################################################################
@@ -390,73 +373,73 @@ end
 # OUTPUT:	List of hasse derivatives until and including <1>
 
 function hasse_deriv(IZ,IX,y,M)
-	R = base_ring(IZ)
-	if IZ == ideal(R, [zero(R)])
-		return hasse_deriv(IZ,IX)
-	end
+  R = base_ring(IZ)
+  if IZ == ideal(R, [zero(R)])
+    return hasse_deriv(IZ,IX)
+  end
 
-	# Checking for correct input. 
-	IZ !== IX || error("IZ and IX cannot be equal.")
-	issubset(IZ,IX) || error("IZ needs to be a subset of IX.")
+  # Checking for correct input. 
+  IZ !== IX || error("IZ and IX cannot be equal.")
+  issubset(IZ,IX) || error("IZ needs to be a subset of IX.")
 
-	# IZstd = standard_basis(ideal(R, reduce(IX, standard_basis(IZ)))) # why is this returning gens(IZ)
-	n = ngens(R) # number of variables of R
-	t = ngens(IZ)
-	r = ngens(IX) - t # number of generators of IX without number of generators of IZ
-	f = empty([R(0)])        
-	for poly in gens(IX)
-		println("# ", poly)
-		poly in IZ || push!(f, poly)
-	end # f = [Generators of IX but not of IZ]
-	detM = det(M)
-	A = adjugate(M)
-	
-	Itemp = IX
-	RetList = [IX] # List of ideals to return. 
-	# RetList = empty([It]) # Maybe we don't need IX as first entry?
-	Null = zeros(ZZ, length(y)) 
-	
-	L = [[f[i],Null] for i in 1:r]
-	old = 0
-	cur = r 
+  # IZstd = standard_basis(ideal(R, reduce(IX, standard_basis(IZ)))) # why is this returning gens(IZ)
+  n = ngens(R) # number of variables of R
+  t = ngens(IZ)
+  r = ngens(IX) - t # number of generators of IX without number of generators of IZ
+  f = empty([R(0)])        
+  for poly in gens(IX)
+    println("# ", poly)
+    poly in IZ || push!(f, poly)
+  end # f = [Generators of IX but not of IZ]
+  detM = det(M)
+  A = adjugate(M)
 
-	while integer_generator(Itemp) == ideal(R, [zero(R)]) # intersect(Itemp, ZZ) == <0> 
-		println("# Intersection(Itemp, ZZ) == <0>")
-		println("# old = ", old)
-		println("# cur = ", cur)
-		for i in old+1:cur # for every f in Itemp without gens(IZ)
-			# println("# i = ", i)
-			for j in 1:length(y) # for every varialbe of system of parameters y
-				# println("# yj = ", y[j], " ")
-				ftemp = L[i][1]
-				note = copy(L[i][2]) # "copy" is important, otherwise "note" would only be a pointer to L[i][2] and NOT a copy
-				note[j] = note[j] + 1
-				# normal pseudo_diff divided by faktor a
-				ftemp = div(pseudo_diff(ftemp, j, A, detM, IZ, y), R(note[j]))
-				if ftemp != zero(R)
-					L = push!(L, [ftemp, copy(note)]) # "copy" is important, (see above)
-					Itemp = Itemp + ideal(R, ftemp)
-				end
-				sleep(0.001) # hasse_deriv did not work without letting it sleep (julia-stuff)
-				println("# ftemp = ", ftemp, " # note = ", note)
-				# println("# L = ", L)
-			end
-			sleep(0.001) # hasse_deriv did not work without letting it sleep (julia-stuff)
-		end
-		println("# Itemp before saturation: ", Itemp)
-		Itemp = saturation(Itemp, ideal(R, detM)) # saturate with <det(M)> to get rid of the factor q = det(M) we got using pseudo_diff
-		println("# Itemp saturated with ", detM, ": ", Itemp)
-		RetList = push!(RetList, Itemp)
-		old = cur
-		cur = length(L)
-		sleep(0.001) # hasse_deriv did not work without letting it sleep (julia-stuff)
-		# println("# RetList = ", RetList)
-	end
-	return (RetList)
+  Itemp = IX
+  RetList = [IX] # List of ideals to return. 
+  # RetList = empty([It]) # Maybe we don't need IX as first entry?
+  Null = zeros(ZZ, length(y)) 
+
+  L = [[f[i],Null] for i in 1:r]
+  old = 0
+  cur = r 
+
+  while integer_generator(Itemp) == ideal(R, [zero(R)]) # intersect(Itemp, ZZ) == <0> 
+    println("# Intersection(Itemp, ZZ) == <0>")
+    println("# old = ", old)
+    println("# cur = ", cur)
+    for i in old+1:cur # for every f in Itemp without gens(IZ)
+      # println("# i = ", i)
+      for j in 1:length(y) # for every varialbe of system of parameters y
+        # println("# yj = ", y[j], " ")
+        ftemp = L[i][1]
+        note = copy(L[i][2]) # "copy" is important, otherwise "note" would only be a pointer to L[i][2] and NOT a copy
+        note[j] = note[j] + 1
+        # normal pseudo_diff divided by faktor a
+        ftemp = div(pseudo_diff(ftemp, j, A, detM, IZ, y), R(note[j]))
+        if ftemp != zero(R)
+          L = push!(L, [ftemp, copy(note)]) # "copy" is important, (see above)
+          Itemp = Itemp + ideal(R, ftemp)
+        end
+        sleep(0.001) # hasse_deriv did not work without letting it sleep (julia-stuff)
+        println("# ftemp = ", ftemp, " # note = ", note)
+        # println("# L = ", L)
+      end
+      sleep(0.001) # hasse_deriv did not work without letting it sleep (julia-stuff)
+    end
+    println("# Itemp before saturation: ", Itemp)
+    Itemp = saturation(Itemp, ideal(R, detM)) # saturate with <det(M)> to get rid of the factor q = det(M) we got using pseudo_diff
+    println("# Itemp saturated with ", detM, ": ", Itemp)
+    RetList = push!(RetList, Itemp)
+    old = cur
+    cur = length(L)
+    sleep(0.001) # hasse_deriv did not work without letting it sleep (julia-stuff)
+    # println("# RetList = ", RetList)
+  end
+  return (RetList)
 end
 
 ####################################################################################
-######################   SPECIAL DERIVATIVE   ###################################### 
+######################   IDEAL DIFF   ############################################## 
 # Name:		ideal_diff(IZ, IX)
 # 											
 # INPUT:	Two ideals IZ and IX 
@@ -501,14 +484,10 @@ function ideal_diff(IZ::IdealQL, IX::IdealQL)
         IX_deriv_temp = [pseudo_diff(f, j, A, detM, IZ, y) for j in 1:length(y) for f in F if !(is_zero(pseudo_diff(f, j, A, detM, IZ, y)))]
         IX_deriv = vcat(IX_deriv, IX_deriv_temp)
         # don't know how to "saturate a vector". Good bye time efficiency. Also: Bye bye units.
-        for i in 1:length(IX_deriv)
+        for i in 1:length(IX_deriv) # saturating w.r.t. detM
           IX_deriv[i] = gens(saturation(ideal(R, IX_deriv[i]), ideal(R, [detM])))[1]
         end
-        # Itemp = saturation(Itemp, ideal(R, detM))
-        # es muss hier saturiert werden, da ja bezüglich detM saturiert wird
       end
-      # IX_deriv = gens(saturation(ideal(R, IX_deriv), ideal(R, detM)))
-      # saturation(ideal(R, [x + z, x^2, x*z^3]), ideal(R, [x]))
       return IX_deriv
     end
   elseif characteristic(baseRing) >= 1
@@ -538,57 +517,57 @@ end
 # - Fall 3: MPolyRing über ZZ (via Überladen)
 
 function loc_greq_2(IZ::IdealQL, IX::IdealQL)
-	R = base_ring(IZ)
-	base_ring(IX) === R || error("IZ and IX need to be defined in the same ring")
-	IZ !== IX || error("IZ and IX cannot be equal.")
-	issubset(IZ, IX) || error("IZ needs to be a subset of IX.")
+  R = base_ring(IZ)
+  base_ring(IX) === R || error("IZ and IX need to be defined in the same ring")
+  IZ !== IX || error("IZ and IX cannot be equal.")
+  issubset(IZ, IX) || error("IZ needs to be a subset of IX.")
 
-	n = ngens(R)
-	baseRing = base_ring(R)
+  n = ngens(R)
+  baseRing = base_ring(R)
 
-	# getting a Itemp = <f_1, ..., f_r>
-	if is_zero(IZ)
-		Itemp = IX
-	else
-		Itemp = ideal(R, [f for f in gens(IX) if !(f in gens(IZ))])
-	end
+  # getting a Itemp = <f_1, ..., f_r>
+  if is_zero(IZ)
+    Itemp = IX
+  else
+    Itemp = ideal(R, [f for f in gens(IX) if !(f in gens(IZ))])
+  end
 
-	if baseRing == ZZ # base_ring ZZ
-		PrimeList = interesting_primes(IZ, IX)
-		for p in PrimeList
-			JX = replace_coeffs(IX, p)
-			JZ = replace_coeffs(IZ, p)
+  if baseRing == ZZ # base_ring ZZ
+    PrimeList = interesting_primes(IZ, IX)
+    for p in PrimeList
+      JX = replace_coeffs(IX, p)
+      JZ = replace_coeffs(IZ, p)
 
-			JX_deriv = ideal_diff(JZ, JX)
-			Vars = push!(gens(R), R(p))
-			Itemp = Itemp + ideal(R, [evaluate(f, Vars) for f in JX_deriv])
-		end
-	elseif characteristic(baseRing) == 0 # char == 0
-		Itemp = Itemp + ideal(R, ideal_diff(IZ, IX))
+      JX_deriv = ideal_diff(JZ, JX)
+      Vars = push!(gens(R), R(p))
+      Itemp = Itemp + ideal(R, [evaluate(f, Vars) for f in JX_deriv])
+    end
+  elseif characteristic(baseRing) == 0 # char == 0
+    Itemp = Itemp + ideal(R, ideal_diff(IZ, IX))
 
-	elseif characteristic(baseRing) >= 1 # char >= 1
-		if is_zero(IZ) # char >= 1, IZ == 0
-			Itemp = IX
-			Itemp = Itemp + ideal(R, [derivative(lifted_numerator(f), i) for i=1:n for f in gens(Itemp)])
-		else # char >= 1, IZ != 0
-			coDimZ = codimension(IZ)
-			JZ = transpose(jacobi_matrix(gens(IZ)))
-			L1 = generate_L1(coDimZ, JZ, IX, IZ)
-	
-			for member in 1:length(L1)
-				M = L1[member][1]
-				detM = det(M)
-				A = adjugate(M) # transposed cofactor matrix of M
-				y = system_of_parameters(R, member, L1[member][2], coDimZ)
-				s = length(y)
-				Itemp = Itemp + ideal(R, [pseudo_diff(f, j, A, detM, IZ, y) for f in gensItemp for j in 1:s])
-				Itemp = saturation(Itemp, ideal(R, detM))
-			end
-		end
-	else
-		return ("How did i get here?")
-	end
-	return (ideal(R, collect(standard_basis(Itemp))))
+  elseif characteristic(baseRing) >= 1 # char >= 1
+    if is_zero(IZ) # char >= 1, IZ == 0
+      Itemp = IX
+      Itemp = Itemp + ideal(R, [derivative(lifted_numerator(f), i) for i=1:n for f in gens(Itemp)])
+    else # char >= 1, IZ != 0
+      coDimZ = codimension(IZ)
+      JZ = transpose(jacobi_matrix(gens(IZ)))
+      L1 = generate_L1(coDimZ, JZ, IX, IZ)
+
+      for member in 1:length(L1)
+        M = L1[member][1]
+        detM = det(M)
+        A = adjugate(M) # transposed cofactor matrix of M
+        y = system_of_parameters(R, member, L1[member][2], coDimZ)
+        s = length(y)
+        Itemp = Itemp + ideal(R, [pseudo_diff(f, j, A, detM, IZ, y) for f in gensItemp for j in 1:s])
+        Itemp = saturation(Itemp, ideal(R, detM))
+      end
+    end
+  else
+    return ("How did i get here?")
+  end
+  return (ideal(R, collect(standard_basis(Itemp))))
 end
 
 ####################################################################################
@@ -601,69 +580,67 @@ end
 # Note: Es ist nicht sinnvoll im Fall char>0 über loc_greq_2 zu iterieren, da genau die Iterierbarkeit der normalen Ableitung mit der hier notwendigen HS-Ableitung nicht möglich ist.
 
 function loc_greq_b(IZ::MPolyQuoIdeal, IX::MPolyQuoIdeal, b::Int64)
+  Mod = modulus(base_ring(IX))
 
-	Mod = modulus(base_ring(IX))
+  Rtemp = base_ring(base_ring(IX))
+  ftemp = [lifted_numerator(f) for f in gens(IX)]
+  IXtemp = ideal(Rtemp, ftemp)
+  gtemp = [lifted_numerator(g) for g in gens(IZ)]
+  IZtemp = ideal(Rtemp, gtemp)
 
-	Rtemp = base_ring(base_ring(IX))
-	ftemp = [lifted_numerator(f) for f in gens(IX)]
-	IXtemp = ideal(Rtemp, ftemp)
-	gtemp = [lifted_numerator(g) for g in gens(IZ)]
-	IZtemp = ideal(Rtemp, gtemp)
+  RetListtemp = loc_greq_b(IZtemp, IXtemp, b)
 
-	RetListtemp = loc_greq_b(IZtemp, IXtemp, b)
+  # TODO: RetListtemp umwandeln in Liste von Idealen vom Typ MPolyQuoIdeal
 
-	# TODO: RetListtemp umwandeln in Liste von Idealen vom Typ MPolyQuoIdeal
-
-	return RetListtemp
+  return RetListtemp
 
 end
 
 function loc_greq_b(IZ::IdealQL, IX::IdealQL, b::Int64)
+  R = base_ring(IZ)
 
-	R = base_ring(IZ)
-	
-	# Checking for correct input. 
-	base_ring(IX) === R || error("IZ and IX need to be defined in the same ring")
-	IZ !== IX || error("IZ and IX cannot be equal.")
-	issubset(IZ,IX) || error("IZ needs to be a subset of IX.")
-	b >= 2 || error("b needs to be greater or equal 2.")
-	
-	temp = IX
-	retList = [temp]
+  # Checking for correct input. 
+  base_ring(IX) === R || error("IZ and IX need to be defined in the same ring")
+  IZ !== IX || error("IZ and IX cannot be equal.")
+  issubset(IZ,IX) || error("IZ needs to be a subset of IX.")
+  b >= 2 || error("b needs to be greater or equal 2.")
 
-	char = get_char(R)  # 
+  temp = IX
+  retList = [temp]
 
-	# einfach immer base_ring benutzen?
+  char = get_char(R)  # 
 
-	# case IZ == <0>
-	if IZ == ideal(R,[zero(R)])
-		if char == 0
-			for i in 1:b-1
-				temp = loc_greq_2(IZ,temp)
-				if one(R) in temp
-					return (retList)
-				end
-				retList = vcat(retList,[temp])
-				# ALTERNATIVE: not checking for one(R) in temp and just always add temp to retList. 
-				# And what's about appling standard_basis on a regular basis. Is it worth/necessary?
-				# retList = vcat(retList,[temp])
-			end
-		else
-			DiffList = hasse_deriv(IZ,IX) # no iteration needed, hasse_deriv already returns all derivatives
-			DiffListL = length(DiffList)
-			if DiffListL>=b 
-				return (DiffList[1:b])
-			else
-				# return (vcat(DiffList,[ideal(R,[one(R)]) for i in DiffListL+1:b]))
-				return (DiffList)
-			end
-		end
-		return (retList) # Liste zurückgeben der Ideale 
-		
-	# case IZ != <0>
-	else	
-		return ("No implementation for IZ != <0> yet.")
-	end
+  # einfach immer base_ring benutzen?
+
+  # case IZ == <0>
+  if IZ == ideal(R,[zero(R)])
+    if char == 0
+      for i in 1:b-1
+        temp = loc_greq_2(IZ,temp)
+        if one(R) in temp
+          return (retList)
+        end
+        retList = vcat(retList,[temp])
+        # ALTERNATIVE: not checking for one(R) in temp and just always add temp to retList. 
+        # And what's about appling standard_basis on a regular basis. Is it worth/necessary?
+        # retList = vcat(retList,[temp])
+      end
+    else
+      DiffList = hasse_deriv(IZ,IX) # no iteration needed, hasse_deriv already returns all derivatives
+      DiffListL = length(DiffList)
+      if DiffListL>=b 
+        return (DiffList[1:b])
+      else
+        # return (vcat(DiffList,[ideal(R,[one(R)]) for i in DiffListL+1:b]))
+        return (DiffList)
+      end
+    end
+    return (retList) # Liste zurückgeben der Ideale 
+    
+  # case IZ != <0>
+  else
+    return ("No implementation for IZ != <0> yet.")
+  end
 end
 
 ####################################################################################
@@ -674,96 +651,107 @@ end
 # OUTPUT:	true/false whether X is/isn't regular
 
 function is_regular(IZ::IdealQL, IX::IdealQL)
-	println("3")
-	R = base_ring(IZ)
-	# return one(R) in loc_greq_2(IZ::IdealQL, IX::IdealQL) ? true : false
-    # Doesn't work like that. See example IX = <x, y^2 + z^2>
+  # println("3")
+  R = base_ring(IZ)
+  # return one(R) in loc_greq_2(IZ::IdealQL, IX::IdealQL) ? true : false
+  # Doesn't work like that. See example IX = <x, y^2 - z^2>
 
-	D_IX = loc_greq_2(IZ, IX)
-	
-	if one(R) in D_IX
-		# finde f1, ..., fs sodass die Vereinigung der Schnitte von X mit D(fi) = X sind
-		# F = [f for f in D_IX if !(f in gens(IX))]
-		println("one in D_IX")
-	else
-		return false
-	end
+  D_IX = loc_greq_2(IZ, IX)
+
+  if one(R) in D_IX
+    # finde f1, ..., fs sodass die Vereinigung der Schnitte von X mit D(fi) = X sind
+    # F = [f for f in D_IX if !(f in gens(IX))]
+    println("one in D_IX")
+    gensIX = gens(IX)
+    IX_deriv = ideal_diff(IZ, IX)
+    # finde ueberdeckung von X, speichere Karten in Vektor H
+    Itemp = IX
+    H = empty(gens(IX)[1])
+    for h in IX_deriv
+      Itemp = Itemp + ideal(R, [h])
+      push!(F, h)
+      !(one(R) in Itemp) || break
+    end
+    # waehle regulaere hyperflaechen auf den Karten in H
+    
+  else
+    return false
+  end
 end
 
 ####################################################################################
-#####################   LOCUS OF MAXIMAL ORDER    ################################## 
+#####################   LOCUS OF MAXIMAL ORDER   ################################### 
 # Name:		MaxOrd
 #
 # INPUT:	Ideals IZ and IX 
 # OUTPUT:	
 
 function MaxOrd(IZ,IX)
-	
-	R = base_ring(IZ)
-	
-	base_ring(IX) === R || error("IZ and IX need to be defined in the same ring")
-	IZ !== IX || error("IZ and IX cannot be equal.")
-	issubset(IZ,IX) || error("IZ needs to be a subset of IX.")
-	
-	Itemp = IX
-	Imax = ideal(R, [one(R)])
-	
-	# case IZ == <0>
-	if IZ==ideal(R, [zero(R)])
-		maxord = 0
-		n = ngens(R)
-		while !(one(R) in Itemp)
-			Imax = Itemp
-			f = gens(Itemp)
-			Itemp = Itemp + ideal(R,[derivative(g,j) for g in f for j in 1:n])
-			maxord = maxord + 1
-		end
-		return (maxord, Imax)
-		# return (maxord, ideal(R,collect(standard_basis(Imax)))) # standard_basis yes or no?
-	# case IZ != <0>
-	else
-		maxord = 1
-		coDimZ = codimension(IZ)
-		JZ = transpose(jacobi_matrix(gens(IZ)))
-		L1 = generate_L1(coDimZ, JZ, IX, IZ)
+  R = base_ring(IZ)
 
-		gensItemp = empty(gens(IX))
-		for poly in gens(IX)
-			poly in IZ || push!(gensItemp, poly)
-		end # gensItemp = [Generators of IX but not of IZ]
-		Itemp = ideal(R, gensItemp)
+  base_ring(IX) === R || error("IZ and IX need to be defined in the same ring")
+  IZ !== IX || error("IZ and IX cannot be equal.")
+  issubset(IZ,IX) || error("IZ needs to be a subset of IX.")
 
-		for member in 1:length(L1)
-			println("# member = ", member)
-			Iold = ideal(R, [zero(R)])
-			thisord = 0
-			M = L1[member][1]
-			detM = det(M)
-			A = adjugate(M) # transposed cofactor matrix of M
-			y = system_of_parameters(R, member, L1[member][2], coDimZ)
-			s = length(y)
+  Itemp = IX
+  Imax = ideal(R, [one(R)])
 
-			while !(one(R) in Itemp + IZ)
-				println("# Itemp + IZ != <1>")
-				Iold = Itemp
-				# getting generators of Itemp (F = [f1, ..., fr])
-				F = gens(Itemp)
-				Itemp = Itemp + ideal(R, [pseudo_diff(f, j, A, detM, IZ, y) for f in F for j in 1:s])
-				Itemp = saturation(Itemp, ideal(R, detM))
-				thisord = thisord + 1
-			end
-			# check whether its nessecary to glue components
-			if thisord >= maxord
-				if thisord == maxord
-					Imax = intersect(Imax, Iold) # glue components together
-				else	# change maxord and ideal of maxorderlocus
-					maxord = thisord
-					Imax = Iold
-				end
-			end
-		end
-	end
-	return (maxord, Imax)
+  # case IZ == <0>
+  if IZ==ideal(R, [zero(R)])
+    maxord = 0
+    n = ngens(R)
+    while !(one(R) in Itemp)
+      Imax = Itemp
+      f = gens(Itemp)
+      Itemp = Itemp + ideal(R,[derivative(g,j) for g in f for j in 1:n])
+      maxord = maxord + 1
+    end
+    return (maxord, Imax)
+    # return (maxord, ideal(R,collect(standard_basis(Imax)))) # standard_basis yes or no?
+  # case IZ != <0>
+  else
+    maxord = 1
+    coDimZ = codimension(IZ)
+    JZ = transpose(jacobi_matrix(gens(IZ)))
+    L1 = generate_L1(coDimZ, JZ, IX, IZ)
+
+    gensItemp = empty(gens(IX))
+    for poly in gens(IX)
+      poly in IZ || push!(gensItemp, poly)
+    end # gensItemp = [Generators of IX but not of IZ]
+    Itemp = ideal(R, gensItemp)
+
+    for member in 1:length(L1)
+      println("# member = ", member)
+      Iold = ideal(R, [zero(R)])
+      thisord = 0
+      M = L1[member][1]
+      detM = det(M)
+      A = adjugate(M) # transposed cofactor matrix of M
+      y = system_of_parameters(R, member, L1[member][2], coDimZ)
+      s = length(y)
+
+      while !(one(R) in Itemp + IZ)
+        println("# Itemp + IZ != <1>")
+        Iold = Itemp
+        # getting generators of Itemp (F = [f1, ..., fr])
+        F = gens(Itemp)
+        Itemp = Itemp + ideal(R, [pseudo_diff(f, j, A, detM, IZ, y) for f in F for j in 1:s])
+        Itemp = saturation(Itemp, ideal(R, detM))
+        thisord = thisord + 1
+      end
+      # check whether its nessecary to glue components
+      if thisord >= maxord
+        if thisord == maxord
+          Imax = intersect(Imax, Iold) # glue components together
+        else	# change maxord and ideal of maxorderlocus
+          maxord = thisord
+          Imax = Iold
+        end
+      end
+    end
+  end
+  return (maxord, Imax)
 end
 
 ####################################################################################
@@ -774,79 +762,78 @@ end
 # OUTPUT:	
 
 function MaxOrdArith(IZ::IdealQL, IX::IdealQL)
-	
-	R = base_ring(IZ)
-	# TODO: Check for correct input.
-	# TODO: Check for vector copy mistakes.
+  R = base_ring(IZ)
+  # TODO: Check for correct input.
+  # TODO: Check for vector copy mistakes.
 
-	# replace coefficients in ZZ with coefficients in QQ in order for MaxOrd to work properly
-	MaxOrd0 = MaxOrd(ideal([map_coefficients(QQ, f) for f in gens(IZ)]), ideal([map_coefficients(QQ, f) for f in gens(IX)]))
-	maxord = MaxOrd0[1]
-	
-	Imax = ideal([map_coefficients(ZZ, f) for f in gens(MaxOrd0[2])]) # Imax = MaxOrd[2] intersect ZZ[x]
-	# R = base_ring(IZ) 
-	RetList = [[0, Imax]]
-	PrimeList = interesting_primes(IZ, IX)
-	for p in PrimeList
-		# In seperate function: apply construction 4.12 (replace coefficients c by c/p^l*P^l for l maximal), denote by JX, JZ resulting ideals in ZZ[x,P]
-		JX = replace_coeffs(IX, p)
-		JZ = replace_coeffs(IZ, p)  # for first case it would be equal to <0> anyway
-		if IZ == ideal(R, [zero(R)])  # case IZ == <0>
-			DiffList = hasse_deriv(JZ, JX)
-			# RESOLVED: Muss hasse_deriv hierfür erweitert werden? Wenn ich hier JX und JZ in einem neuen Ring mit Variable P definiere sollte hasse_deriv doch ganz normal durchlaufen, oder nicht? Ja, alles gut! 
-			m = length(DiffList)
-			Vars = push!(gens(R), R(p))
-			for i in 1:m 
-				# DiffList[i] = ideal(substitute(DiffList[i],P,p))
-				DiffList[i] = ideal(R, [evaluate(f, Vars) for f in gens(DiffList[i])])
-			end
-			while one(R) in DiffList[m] # R == ZZ[x]
-				m = m - 1
-			end
-			if m >= maxord
-				Imax = DiffList[m]
-				if m > maxord
-					maxord = m
-					RetList = [[p, Imax]]
-				elseif RetList[1][1] != 0
-					RetList = vcat(RetList, [[p, Imax]])
-				end
-			end
+  # replace coefficients in ZZ with coefficients in QQ in order for MaxOrd to work properly
+  MaxOrd0 = MaxOrd(ideal([map_coefficients(QQ, f) for f in gens(IZ)]), ideal([map_coefficients(QQ, f) for f in gens(IX)]))
+  maxord = MaxOrd0[1]
 
-		else  # case IZ != <0>
-			coDimZ = codimension(IZ)
-			JJZ = transpose(jacobi_matrix(gens(JZ)))
-			L1 = generate_L1(coDimZ, JJZ, IX, IZ)
-			locord = 1
-			for member in 1:length(L1)
-				# y = system_of_parameters
-				y = system_of_parameters(R, member::Int64, colIndices, coDimZ::Int64)
-				DiffList = hasse_deriv(JZ, JX, y, M)
-				m = length(DiffList)
-				Vars = push!(gens(R), R(p))
-				for i in 1:m
-					DiffList[i] = ideal(R, [evaluate(f, Vars) for f in gens(DiffList[i])])
-				end
-				while one(R) in DiffList[m]
-					m = m -1
-				end
-				if m > locord 
-					Imax = DiffList[m]
-					locord = m
-				elseif m == locord
-					Imax = union(Imax, DiffList[m])
-				end
-			end
-			if locord >= maxord
-				if locord > maxord
-					RetList = empty(RetList[1])
-					marord = locord
-					push!(RetList, [p, Imax])
-				elseif RetList[1][1] == 0 
-					push!(RetList, [p, Imax])
-				end
-			end
-		end
-	end
-	return (maxord, RetList)
+  Imax = ideal([map_coefficients(ZZ, f) for f in gens(MaxOrd0[2])]) # Imax = MaxOrd[2] intersect ZZ[x]
+  # R = base_ring(IZ) 
+  RetList = [[0, Imax]]
+  PrimeList = interesting_primes(IZ, IX)
+  for p in PrimeList
+    # In seperate function: apply construction 4.12 (replace coefficients c by c/p^l*P^l for l maximal), denote by JX, JZ resulting ideals in ZZ[x,P]
+    JX = replace_coeffs(IX, p)
+    JZ = replace_coeffs(IZ, p)  # for first case it would be equal to <0> anyway
+    if IZ == ideal(R, [zero(R)])  # case IZ == <0>
+      DiffList = hasse_deriv(JZ, JX)
+      # RESOLVED: Muss hasse_deriv hierfür erweitert werden? Wenn ich hier JX und JZ in einem neuen Ring mit Variable P definiere sollte hasse_deriv doch ganz normal durchlaufen, oder nicht? Ja, alles gut! 
+      m = length(DiffList)
+      Vars = push!(gens(R), R(p))
+      for i in 1:m 
+        # DiffList[i] = ideal(substitute(DiffList[i],P,p))
+        DiffList[i] = ideal(R, [evaluate(f, Vars) for f in gens(DiffList[i])])
+      end
+      while one(R) in DiffList[m] # R == ZZ[x]
+        m = m - 1
+      end
+      if m >= maxord
+        Imax = DiffList[m]
+        if m > maxord
+          maxord = m
+          RetList = [[p, Imax]]
+        elseif RetList[1][1] != 0
+          RetList = vcat(RetList, [[p, Imax]])
+        end
+      end
+
+    else  # case IZ != <0>
+      coDimZ = codimension(IZ)
+      JJZ = transpose(jacobi_matrix(gens(JZ)))
+      L1 = generate_L1(coDimZ, JJZ, IX, IZ)
+      locord = 1
+      for member in 1:length(L1)
+        # y = system_of_parameters
+        y = system_of_parameters(R, member::Int64, colIndices, coDimZ::Int64)
+        DiffList = hasse_deriv(JZ, JX, y, M)
+        m = length(DiffList)
+        Vars = push!(gens(R), R(p))
+        for i in 1:m
+          DiffList[i] = ideal(R, [evaluate(f, Vars) for f in gens(DiffList[i])])
+        end
+        while one(R) in DiffList[m]
+          m = m -1
+        end
+        if m > locord 
+          Imax = DiffList[m]
+          locord = m
+        elseif m == locord
+          Imax = union(Imax, DiffList[m])
+        end
+      end
+      if locord >= maxord
+        if locord > maxord
+          RetList = empty(RetList[1])
+          marord = locord
+          push!(RetList, [p, Imax])
+        elseif RetList[1][1] == 0 
+          push!(RetList, [p, Imax])
+        end
+      end
+    end
+  end
+  return (maxord, RetList)
 end
