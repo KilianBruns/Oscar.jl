@@ -222,10 +222,26 @@ end
 # INPUT:	Ideals IZ and IX
 # OUTPUT:	
 
+function interesting_primes(IX::IdealQL)
+  R = base_ring(IX)
+  n = ngens(R)
+  Itemp = IX
+  Iint = ideal(R, [zero(R)])
+  while is_zero(Iint)
+    f = gens(Itemp)
+    Itemp = Itemp + ideal([derivative(g,i) for i=1:n for g in f])
+    Iint = integer_generator(Itemp)
+  end
+  resultList = primefactors(leading_coefficient(gens(Iint)[1]))[1]
+  return resultList
+end
+
 function interesting_primes(IZ::IdealQL, IX::IdealQL)
   # Checking for correct input. 
   IZ != IX || error("IZ and IX cannot be equal.")
   issubset(IZ,IX) || error("IZ needs to be a subset of IX.")
+
+  is_zero(IZ) && return interesting_primes(IX)
 
   R = base_ring(IZ)
   Itemp = IX				# Muss für IZ != <O> geändert werden
@@ -240,48 +256,38 @@ function interesting_primes(IZ::IdealQL, IX::IdealQL)
 
   Iint = ideal(R, [zero(R)]) # redundant bc of if statment above?
 
-  if is_zero(IZ) # case IZ == <0>
-    while is_zero(Iint)
-      r = ngens(Itemp)
-      f = gens(Itemp)
-      Itemp = Itemp + ideal([derivative(g,i) for i=1:n for g in f])
-      Iint = integer_generator(Itemp)
-    end
-    resultList = primefactors(leading_coefficient(gens(Iint)[1]))[1]
-  else # case IZ != <0>
-    # no need to union resultList with primefactors here, resultList was empty
-    resultList = primefactors(IZ)
-    coDimZ = codimension(IZ)
-    JZ = transpose(jacobi_matrix(gens(IZ)))
-    # may have to do this a diffrent way; not intersecting with D(p_1*...*p_alpha) yet
-    L1 = generate_L1(coDimZ, JZ, IX, IZ, prod(resultList)) # at this moment resultList only contains the primefactors of the coeffs of gens(IZ)
-    println("# ", "L1 = ", L1)
+  # no need to union resultList with primefactors here, resultList was empty
+  resultList = primefactors(IZ)
+  coDimZ = codimension(IZ)
+  JZ = transpose(jacobi_matrix(gens(IZ)))
+  # may have to do this a diffrent way; not intersecting with D(p_1*...*p_alpha) yet
+  L1 = generate_L1(coDimZ, JZ, IX, IZ, prod(resultList)) # at this moment resultList only contains the primefactors of the coeffs of gens(IZ)
+  println("# ", "L1 = ", L1)
 
-    gensItemp = empty(gens(IX))
-    for poly in gens(IX)
-      poly in IZ || push!(gensItemp, poly) # what if IZ = <x1> and IX = <x1, 15*x1> ?
-    end # gensItemp = [Generators of IX but not of IZ]
-    Itemp = ideal(R, gensItemp)
+  gensItemp = empty(gens(IX))
+  for poly in gens(IX)
+    poly in IZ || push!(gensItemp, poly) # what if IZ = <x1> and IX = <x1, 15*x1> ?
+  end # gensItemp = [Generators of IX but not of IZ]
+  Itemp = ideal(R, gensItemp)
 
-    for member in 1:length(L1)
-      println("# ", "member ", member)
-      y = system_of_parameters(R, member, L1[member][2], coDimZ)
-      println("# ", "system_of_parameters ready")
-      Iint = ideal(R, [zero(R)])
-      M = L1[member][1]
-      detM = det(M)
-      A = adjugate(M) # transposed cofactor matrix of M
-      while Iint == ideal(R, [zero(R)])
-        F = gens(Itemp)
-        Itemp = Itemp + ideal(R, [pseudo_diff(f, j, A, detM, IZ, y) for f in F for j in 1:length(y)])
-        # KLÄREN: Hier muss doch Itemp verändert werden oder nicht?
-        Iint = integer_generator(Itemp + IZ)
-        println("# Itemp = ", Itemp)
-      end
-      println("# ", "while finished")
-      one(R) in Iint || (resultList = union(resultList, primefactors(leading_coefficient(gens(Iint)[1]))[1]))
+  for member in 1:length(L1)
+    println("# ", "member ", member)
+    y = system_of_parameters(R, member, L1[member][2], coDimZ)
+    println("# ", "system_of_parameters ready")
+    Iint = ideal(R, [zero(R)])
+    M = L1[member][1]
+    detM = det(M)
+    A = adjugate(M) # transposed cofactor matrix of M
+    while Iint == ideal(R, [zero(R)])
+      F = gens(Itemp)
+      Itemp = Itemp + ideal(R, [pseudo_diff(f, j, A, detM, IZ, y) for f in F for j in 1:length(y)])
+      # KLÄREN: Hier muss doch Itemp verändert werden oder nicht?
+      Iint = integer_generator(Itemp + IZ)
+      println("# Itemp = ", Itemp)
     end
-  end	
+    println("# ", "while finished")
+    one(R) in Iint || (resultList = union(resultList, primefactors(leading_coefficient(gens(Iint)[1]))[1]))
+  end
   return (resultList)
 end
 
@@ -445,56 +451,78 @@ end
 # INPUT:	Two ideals IZ and IX 
 # OUTPUT:	A vector with derivatives of generators of IX
 
+function ideal_diff(IX::IdealQL)
+  R = base_ring(IX)
+  baseRing = base_ring(R)
+  if baseRing == ZZ
+    # here im getting ideals where a prime already had been replaced by a new variable P. Hence this is a normal derivation
+    return [f for f in minors(jacobi_matrix(gens(IX)), 1) if !(is_zero(f))]
+  elseif characteristic(baseRing) == 0
+    return [f for f in minors(jacobi_matrix(gens(IX)), 1) if !(is_zero(f))]
+  elseif characteristic(baseRing) > 0
+    return [f for f in minors(jacobi_matrix(gens(IX)), 1) if !(is_zero(f))]
+  else
+    return ("How did i get here?")
+  end 
+end
+
 function ideal_diff(IZ::IdealQL, IX::IdealQL)
+  is_zero(IZ) && return ideal_diff(IX)
   R = base_ring(IZ)
   baseRing = base_ring(R)
   if baseRing == ZZ
-    if is_zero(IZ)
-      # here im getting ideals where a prime already had been replaced by a new variable P. Hence this is a normal derivation
-      return [f for f in minors(jacobi_matrix(gens(IX)), 1) if !(is_zero(f))]
-    else
-      coDimZ = codimension(IZ)
-      JZ = transpose(jacobi_matrix(gens(IZ)))
-      L1 = generate_L1(coDimZ, JZ, IX, IZ)
-      IX_deriv = empty([gens(IX)[1]])
-      for member in 1:length(L1)
-        M = L1[member][1]
-        detM = det(M)
-        A = adjugate(M)
-        y = system_of_parameters(Rtemp, member, L1[member][2], coDimZ)
-        F = [f for f in gens(IX) if !(f in IZ)]
-        IX_deriv = IX_deriv + [pseudo_diff(f, j, A, detM, IZ, y) for j in 1:length(y) for f in F if !(is_zero(pseudo_diff(f, j, A, detM, IZ, y)))]
-      end
-      return IX_deriv 
+    coDimZ = codimension(IZ)
+    JZ = transpose(jacobi_matrix(gens(IZ)))
+    L1 = generate_L1(coDimZ, JZ, IX, IZ)
+    IX_deriv = empty([gens(IX)[1]])
+    for member in 1:length(L1)
+      M = L1[member][1]
+      detM = det(M)
+      A = adjugate(M)
+      y = system_of_parameters(Rtemp, member, L1[member][2], coDimZ)
+      F = [f for f in gens(IX) if !(f in IZ)]
+      IX_deriv = IX_deriv + [pseudo_diff(f, j, A, detM, IZ, y) for j in 1:length(y) for f in F if !(is_zero(pseudo_diff(f, j, A, detM, IZ, y)))]
     end
+    return IX_deriv 
   elseif characteristic(baseRing) == 0
-    if is_zero(IZ)
-      return [f for f in minors(jacobi_matrix(gens(IX)), 1) if !(is_zero(f))]
-    else
-      coDimZ = codimension(IZ)
-      JZ = transpose(jacobi_matrix(gens(IZ)))
-      L1 = generate_L1(coDimZ, JZ, IX, IZ)
-      IX_deriv = empty([gens(IX)[1]])
-      for member in 1:length(L1)
-        M = L1[member][1]
-        detM = det(M)
-        A = adjugate(M) # transposed cofactor matrix of M
-        y = system_of_parameters(R, member, L1[member][2], coDimZ)
-        F = [f for f in gens(IX) if !(f in IZ)]
-        IX_deriv_temp = [pseudo_diff(f, j, A, detM, IZ, y) for j in 1:length(y) for f in F if !(is_zero(pseudo_diff(f, j, A, detM, IZ, y)))]
-        IX_deriv = vcat(IX_deriv, IX_deriv_temp)
-        # don't know how to "saturate a vector". Good bye time efficiency. Also: Bye bye units.
-        for i in 1:length(IX_deriv) # saturating w.r.t. detM
-          IX_deriv[i] = gens(saturation(ideal(R, IX_deriv[i]), ideal(R, [detM])))[1]
-        end
+    coDimZ = codimension(IZ)
+    JZ = transpose(jacobi_matrix(gens(IZ)))
+    L1 = generate_L1(coDimZ, JZ, IX, IZ)
+    IX_deriv = empty([gens(IX)[1]])
+    for member in 1:length(L1)
+      M = L1[member][1]
+      detM = det(M)
+      A = adjugate(M) # transposed cofactor matrix of M
+      y = system_of_parameters(R, member, L1[member][2], coDimZ)
+      F = [f for f in gens(IX) if !(f in IZ)]
+      IX_deriv_temp = [pseudo_diff(f, j, A, detM, IZ, y) for j in 1:length(y) for f in F if !(is_zero(pseudo_diff(f, j, A, detM, IZ, y)))]
+      IX_deriv = vcat(IX_deriv, IX_deriv_temp)
+      # don't know how to "saturate a vector". Good bye time efficiency. Also: Bye bye units.
+      for i in 1:length(IX_deriv) # saturating w.r.t. detM
+        IX_deriv[i] = gens(saturation(ideal(R, IX_deriv[i]), ideal(R, [detM])))[1]
       end
-      return IX_deriv
     end
-  elseif characteristic(baseRing) >= 1
-    if is_zero(IZ)
-      return [f for f in minors(jacobi_matrix(gens(IX)), 1) if !(is_zero(f))]
-    else
+    return IX_deriv
+  elseif characteristic(baseRing) > 0
+    # no hasse_deriv, bc first hasse schmidt derivative is equal to the first normal derivative
+    coDimZ = codimension(IZ)
+    JZ = transpose(jacobi_matrix(gens(IZ)))
+    L1 = generate_L1(coDimZ, JZ, IX, IZ)
+    IX_deriv = empty([gens(IX)[1]])
+    for member in 1:length(L1)
+      M = L1[member][1]
+      detM = det(M)
+      A = adjugate(M) # transposed cofactor matrix of M
+      y = system_of_parameters(R, member, L1[member][2], coDimZ)
+      F = [f for f in gens(IX) if !(f in IZ)]
+      IX_deriv_temp = [pseudo_diff(f, j, A, detM, IZ, y) for j in 1:length(y) for f in F if !(is_zero(pseudo_diff(f, j, A, detM, IZ, y)))]
+      IX_deriv = vcat(IX_deriv, IX_deriv_temp)
+      # don't know how to "saturate a vector". Good bye time efficiency. Also: Bye bye units.
+      for i in 1:length(IX_deriv) # saturating w.r.t. detM
+        IX_deriv[i] = gens(saturation(ideal(R, IX_deriv[i]), ideal(R, [detM])))[1]
+      end
     end
+    return IX_deriv
   else
     return ("How did i get here?")
   end
@@ -516,21 +544,41 @@ end
 # - Fall 2: MPolyRing über Körper der Char>0 (via Überladen)
 # - Fall 3: MPolyRing über ZZ (via Überladen)
 
+function loc_greq_2(IX::IdealQL)
+  R = base_ring(IX)
+  baseRing = base_ring(R)
+  Itemp = IX
+  if baseRing == ZZ
+    PrimeList = interesting_primes(IZ, IX)
+    for p in PrimeList
+      JX = replace_coeffs(IX, p)
+
+      JX_deriv = ideal_diff(JX)
+      Vars = push!(gens(R), R(p))
+      Itemp = Itemp + ideal(R, [evaluate(f, Vars) for f in JX_deriv])
+    end
+  elseif characteristic(baseRing) == 0
+    Itemp = Itemp + ideal(R, ideal_diff(IX))
+  elseif characteristic(baseRing) > 1
+    Itemp = Itemp + ideal(R, [derivative(lifted_numerator(f), i) for i=1:n for f in gens(Itemp)])
+  else
+    return ("How did i get here?")
+  end
+end
+
 function loc_greq_2(IZ::IdealQL, IX::IdealQL)
   R = base_ring(IZ)
   base_ring(IX) === R || error("IZ and IX need to be defined in the same ring")
   IZ !== IX || error("IZ and IX cannot be equal.")
   issubset(IZ, IX) || error("IZ needs to be a subset of IX.")
 
-  n = ngens(R)
+  is_zero(IZ) && return loc_greq_2(IX)
+
+  n = ngens(R) # may not be needed
   baseRing = base_ring(R)
 
   # getting a Itemp = <f_1, ..., f_r>
-  if is_zero(IZ)
-    Itemp = IX
-  else
-    Itemp = ideal(R, [f for f in gens(IX) if !(f in gens(IZ))])
-  end
+  Itemp = ideal(R, [f for f in gens(IX) if !(f in gens(IZ))])
 
   if baseRing == ZZ # base_ring ZZ
     PrimeList = interesting_primes(IZ, IX)
@@ -544,25 +592,19 @@ function loc_greq_2(IZ::IdealQL, IX::IdealQL)
     end
   elseif characteristic(baseRing) == 0 # char == 0
     Itemp = Itemp + ideal(R, ideal_diff(IZ, IX))
-
   elseif characteristic(baseRing) >= 1 # char >= 1
-    if is_zero(IZ) # char >= 1, IZ == 0
-      Itemp = IX
-      Itemp = Itemp + ideal(R, [derivative(lifted_numerator(f), i) for i=1:n for f in gens(Itemp)])
-    else # char >= 1, IZ != 0
-      coDimZ = codimension(IZ)
-      JZ = transpose(jacobi_matrix(gens(IZ)))
-      L1 = generate_L1(coDimZ, JZ, IX, IZ)
+    coDimZ = codimension(IZ)
+    JZ = transpose(jacobi_matrix(gens(IZ)))
+    L1 = generate_L1(coDimZ, JZ, IX, IZ)
 
-      for member in 1:length(L1)
-        M = L1[member][1]
-        detM = det(M)
-        A = adjugate(M) # transposed cofactor matrix of M
-        y = system_of_parameters(R, member, L1[member][2], coDimZ)
-        s = length(y)
-        Itemp = Itemp + ideal(R, [pseudo_diff(f, j, A, detM, IZ, y) for f in gensItemp for j in 1:s])
-        Itemp = saturation(Itemp, ideal(R, detM))
-      end
+    for member in 1:length(L1)
+      M = L1[member][1]
+      detM = det(M)
+      A = adjugate(M) # transposed cofactor matrix of M
+      y = system_of_parameters(R, member, L1[member][2], coDimZ)
+      s = length(y)
+      Itemp = Itemp + ideal(R, [pseudo_diff(f, j, A, detM, IZ, y) for f in gensItemp for j in 1:s])
+      Itemp = saturation(Itemp, ideal(R, detM))
     end
   else
     return ("How did i get here?")
@@ -664,15 +706,15 @@ function is_regular(IZ::IdealQL, IX::IdealQL)
     println("one in D_IX")
     gensIX = gens(IX)
     IX_deriv = ideal_diff(IZ, IX)
-    # finde ueberdeckung von X, speichere Karten in Vektor H
+    # finde ueberdeckung von X, speichere Karten in Vektor F
     Itemp = IX
-    H = empty(gens(IX)[1])
-    for h in IX_deriv
-      Itemp = Itemp + ideal(R, [h])
-      push!(F, h)
+    F = empty(gens(IX)[1])
+    for f in IX_deriv
+      Itemp = Itemp + ideal(R, [f])
+      push!(F, f)
       !(one(R) in Itemp) || break
     end
-    # waehle regulaere hyperflaechen auf den Karten in H
+    # weiter Anforderungen an die f nach Konstruktion erfuellt
     
   else
     return false
