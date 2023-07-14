@@ -560,7 +560,7 @@ function loc_greq_2(IX::IdealQL)
   elseif characteristic(baseRing) == 0
     Itemp = Itemp + ideal(R, ideal_diff(IX))
   elseif characteristic(baseRing) > 1
-    Itemp = Itemp + ideal(R, [derivative(lifted_numerator(f), i) for i=1:n for f in gens(Itemp)])
+    Itemp = Itemp + ideal(R, ideal_diff(IX))
   else
     return ("How did i get here?")
   end
@@ -692,33 +692,53 @@ end
 # INPUT:	Ideals IZ and IX 
 # OUTPUT:	true/false whether X is/isn't regular
 
-function is_regular(IZ::IdealQL, IX::IdealQL)
-  # println("3")
-  R = base_ring(IZ)
-  # return one(R) in loc_greq_2(IZ::IdealQL, IX::IdealQL) ? true : false
-  # Doesn't work like that. See example IX = <x, y^2 - z^2>
-
-  D_IX = loc_greq_2(IZ, IX)
+function is_regular(IX::IdealQL)
+  R = base_ring(IX)
+  D_IX = loc_greq_2(IX)
 
   if one(R) in D_IX
     # finde f1, ..., fs sodass die Vereinigung der Schnitte von X mit D(fi) = X sind
     # F = [f for f in D_IX if !(f in gens(IX))]
     println("one in D_IX")
     gensIX = gens(IX)
-    IX_deriv = ideal_diff(IZ, IX)
+    IX_deriv = ideal_diff(IX)
     # finde ueberdeckung von X, speichere Karten in Vektor F
     Itemp = IX
     F = empty(gens(IX)[1])
     for f in IX_deriv
       Itemp = Itemp + ideal(R, [f])
       push!(F, f)
-      !(one(R) in Itemp) || break
+      # !(one(R) in Itemp) || break  
+      !(radical_membership(one(R), Itemp)) || break # radical_membership
     end
     # weiter Anforderungen an die f nach Konstruktion erfuellt
     
   else
     return false
   end
+end
+
+function is_regular(IZ::IdealQL, IX::IdealQL)
+  R = base_ring(IZ)
+  base_ring(IX) === R || error("IZ and IX need to be defined in the same ring")
+  IZ !== IX || error("IZ and IX cannot be equal.")
+  issubset(IZ, IX) || error("IZ needs to be a subset of IX.")
+
+  is_zero(IZ) && return is_regular(IX)
+
+  # return one(R) in loc_greq_2(IZ::IdealQL, IX::IdealQL) ? true : false
+  # Doesn't work like that. See example IX = <x, y^2 - z^2>
+
+  D_IX = loc_greq_2(IZ, IX)
+
+  if one(R) in D_IX
+    
+
+    
+  else
+    return false
+  end
+  
 end
 
 ####################################################################################
