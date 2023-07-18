@@ -2,6 +2,7 @@ export codimension
 export system_of_parameters
 export adjugate
 export pseudo_diff
+export pseudo_diff_helper
 export primefactors
 export generate_L1
 export integer_generator
@@ -16,6 +17,11 @@ export is_regular
 
 #export MaxOrd
 #export MaxOrdArith
+
+export hybrid_smoothness_test
+export delta_check
+#export descend_embedding_smooth
+#export embedded_jacobian
 
 ### Unions
 
@@ -100,10 +106,10 @@ function pseudo_diff(f, j, A, q, I::IdealQL, y::Vector)
 
   RetPoly = q * derivative(f, y[j])
   F = reduce(f, gens(Istd))
-  n = ngens(R)
 
   # Generating a list of Variables which aren't in parametersystem y
   OtherVars = empty(gensR)
+  n = ngens(R)
   for k in 1:n
     gensR[k] in y || push!(OtherVars, gensR[k])
   end
@@ -113,6 +119,33 @@ function pseudo_diff(f, j, A, q, I::IdealQL, y::Vector)
     for l in 1:nrows(A)
       SubPoly = derivative(gens(I)[l], y[j]) * A[l,k] * derivative(F, OtherVars[k])
       SubPoly = reduce(SubPoly, gens(Istd))
+      RetPoly = RetPoly - SubPoly
+    end
+  end
+  return (RetPoly)
+end
+
+# slightly different to be used in delta_check
+function pseudo_diff_helper(f, j, A, q, I::IdealQL, y::Vector)
+  R = base_ring(I)
+
+  # Check for correct input? No, it'll be checked in main functions.
+  gensR = gens(R)
+  Istd = standard_basis(I)
+
+  RetPoly = q * derivative(f, y[j])
+
+  # Generating a list of Variables which aren't in parametersystem y
+  OtherVars = empty(gensR)
+  n = ngens(R)
+  for k in 1:n
+    gensR[k] in y || push!(OtherVars, gensR[k])
+  end
+
+  # See formular in remark 4.2
+  for k in 1:ncols(A)
+    for l in 1:nrows(A)
+      SubPoly = derivative(gens(I)[l], y[j]) * A[l,k] * derivative(f, OtherVars[k])
       RetPoly = RetPoly - SubPoly
     end
   end
@@ -152,6 +185,39 @@ end
 #
 # INPUT:	
 # OUTPUT:	
+
+# returns all submatricies M with det(M) != 0
+# for using in delta_check
+function generate_L1(IZ::IdealQL, IX::IdealQL)
+  R = base_ring(IZ)
+  coDimZ = codimension(IZ)
+  JZ = transpose(jacobi_matrix(gens(IZ)))
+  maxcol = ncols(JZ)
+  maxrow = nrows(JZ)
+  colIndices_makeMatrix = AbstractAlgebra.combinations(1:maxcol, coDimZ) # Indices der Spaltenvektoren der Untermatrix
+  colIndices = reverse(AbstractAlgebra.combinations(1:maxcol, maxcol-coDimZ)) # Indices der Spaltenvektor, die nicht die Untermatrix bilden
+  # generate submatricies # corresponting entries of colIndices and subMatricies are those i need
+  subMatricies = [sub(JZ, Vector{Int64}(1:maxrow), indices) for indices in colIndices_makeMatrix]	
+  L1 = empty([subMatricies[1], colIndices[1]])
+  detM_zero = true
+  for member in 1:length(subMatricies)
+    M = subMatricies[member]
+    detM = det(M)
+    # checking if det(M) = 0 mod IX
+    for f in gens(IX)
+      if is_zero(mod(detM, f))
+        detM_zero = true
+        break
+      end
+      detM_zero = false
+    end
+    # if det(M) != 0 mod IX, pushing M with indices onto L1
+    if !detM_zero
+      push!(L1, [subMatricies[member], colIndices[member]])
+    end
+  end
+  return L1
+end
 
 function generate_L1(coDimZ::Int64, JZ, IX::IdealQL, IZ::IdealQL)
   R = base_ring(IZ)
@@ -704,7 +770,7 @@ function is_regular(IX::IdealQL)
     IX_deriv = ideal_diff(IX)
     # finde ueberdeckung von X, speichere Karten in Vektor F
     Itemp = IX
-    F = empty(gens(IX)[1])
+    F = empty(gens(IX))
     for f in IX_deriv
       Itemp = Itemp + ideal(R, [f])
       push!(F, f)
@@ -844,7 +910,10 @@ function MaxOrdArith(IZ::IdealQL, IX::IdealQL)
       DiffList = hasse_deriv(JZ, JX)
       # RESOLVED: Muss hasse_deriv hierfür erweitert werden? Wenn ich hier JX und JZ in einem neuen Ring mit Variable P definiere sollte hasse_deriv doch ganz normal durchlaufen, oder nicht? Ja, alles gut! 
       m = length(DiffList)
-      Vars = push!(gens(R), R(p))
+      # Vars = push!(gens(R), R(p))
+      # Alternative:
+      Vars = gens(R)
+      push!(Vars, R(p))
       for i in 1:m 
         # DiffList[i] = ideal(substitute(DiffList[i],P,p))
         DiffList[i] = ideal(R, [evaluate(f, Vars) for f in gens(DiffList[i])])
@@ -899,3 +968,143 @@ function MaxOrdArith(IZ::IdealQL, IX::IdealQL)
   end
   return (maxord, RetList)
 end
+
+####################################################################################
+#####################   HYBRID SMOOTHNESS TEST   ################################### 
+# Name:		hybrid_smoothness_test
+#
+# INPUT:	Ideals IZ = <f_1, ..., f_r> subset of IX = <f_1, ..., f_s> element k[x_1, ..., x_n] and a polynomial q, non-negative integer c 
+# OUTPUT:	 true if V(IX intersect D(q)) is smooth, false otherwise
+
+function hybrid_smoothness_test(IZ::IdealQL, IX::IdealQL, q, c)
+  if dim(IZ) - dim(IX) == 0
+    return true
+  end
+  if dim(IZ) - dim(IX) <= c
+    return embedded_jacobian(IZ, IX, q)
+  end
+  if !(delta_check(IZ, IX, q))
+    return false
+  end
+  L = descend_embedding_smooth(IZ, IX, q)
+  for l in L 
+    if !(hybrid_smoothness_test(l[1], l[2], l[3], c))
+      return false
+    end
+  end
+  return true
+end
+
+####################################################################################
+#####################   DELTA CHECK for affine charts  ############################# 
+# Name:		delta_check
+#
+# INPUT:	Ideals IZ = <f_1, ..., f_r> subset of IX = <f_1, ..., f_s> element k[x_1, ..., x_n] and a polynomial q
+# OUTPUT:	 true if Sing(I_{X,Z}, 2) intersect D(q) = empty set, false otherwise
+
+function delta_check(IZ::IdealQL, IX::IdealQL, q)
+  # First handle the case IZ=<0>, q=1; then x_1, ..., x_n induce a local
+  # system of parameters at every point of Z 
+  R = base_ring(IZ)
+  if is_zero(IZ) && q == R(1)
+    if one(R) in IX + ideal(R, ideal_diff(IX))
+      return true
+    else
+      return false
+    end
+  end
+  # Initialization
+  Q = ideal(R, [zero(R)])
+  L1 = generate_L1(IZ, IX)
+  # F contains all gens(IX)\gens(IZ)
+  F = empty(gens(IX))
+  for f in gens(IX)
+    f in gens(IZ) || push!(F, f)
+  end
+  # Main loop: Cover by complements of minors
+  for member in 1:length(L1) 
+    if q in Q
+      break
+    end
+    M = L1[member][1]
+    q_new = det(M)
+    Q = Q + ideal(R, [q_new])
+    A = adjugate(M)
+    # Test Sing(I_{X,Z}, 2) subset V(q_new) union V(q)
+    y = system_of_parameters(R, member, [L1[member][2]], codim(IZ))
+    s = length(y)
+    C_M = IX + ideal(R, [pseudo_diff_helper(f, j, A, q_new, IZ, y) for f in F for j in 1:s])
+    # if q_new * q is not in C_M return false
+    if !radical_membership(q_new * q, C_M)
+      return false
+    end
+  end
+  return true 
+end
+
+####################################################################################
+#####################   DESCEND EMBEDDING SMOOTH   ################################# 
+# Name:		descend_embedding_smooth
+#
+# INPUT:	Ideals IZ = <f_1, ..., f_r> subset of IX = <f_1, ..., f_s> element k[x_1, ..., x_n] and a polynomial q
+# OUTPUT:	 Triples (IZ_i, IX, q_i)
+
+function descend_embedding_smooth(IZ::IdealQL, IX::IdealQL, q)
+  # Direct descent: no need to find an open covering of V(IX) intersect D(q)
+
+  # Descent by constructing an open covering of V(IX) intersect D(q)
+  for i in (ngens(IZ)+1):ngens(IX)
+    # ideal generated by (r+1)x(r+1) minors 
+  end
+end
+
+####################################################################################
+#####################   EMBEDDED JACOBIAN   ######################################## 
+# Name:		embedded_jacobian
+#
+# INPUT:	Ideals IZ = <f_1, ..., f_r> subset of IX = <f_1, ..., f_s> element k[x_1, ..., x_n] and a polynomial q
+# OUTPUT:	 Triples (IZ_i, IX, q_i)
+
+function embedded_jacobian(IZ::IdealQL, IX::IdealQL, q)
+  R = base_ring(IZ)
+  Q = ideal(R, [zero(R)])
+  L = generate_L1(IZ, IX)
+  # Read off regular system of parameters for non-trivial h 
+  # L_M = [L1[i][1] for i in 1:length(L1)]
+  indices = empty([1])
+  for member in 1:length(L)
+    M = L[member][1]
+    if is_zero(mod(q, det(M))) # if det(M) divides q
+      push!(indices, member) 
+      # break # use if only one M with det(M) divides q is enough
+    end
+  end
+  if length(indices) != length(L)
+    L = L[indices]
+  end
+  # Covering by complements of the minors
+  for member in 1:length(L1) 
+    if q in Q
+      break
+    end
+    M = L1[member][1]
+    q_new = det(M)
+    Q = Q + ideal(R, [q_new])
+    A = adjugate(M)
+    # Jacobian matrix of IX w.r.t. local system of parameters for IZ
+    y = system_of_parameters(R, member, [L1[member][2]], codim(IZ))
+    s = length(y)
+    C_M = IX + ideal(R, [pseudo_diff_helper(f, j, A, q_new, IZ, y) for f in F for j in 1:s])
+    # if q_new * q is not in C_M return false
+    if !radical_membership(q_new * q, C_M)
+      return false
+    end
+  end
+
+end
+
+
+
+
+
+

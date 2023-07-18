@@ -14,6 +14,12 @@ colIndices = [[2,3,4,5]]
 coDimZ = 1
 system_of_parameters(R,member,colIndices,coDimZ) # working
 
+R, x = polynomial_ring(QQ, 5, "x")
+member = 1
+colIndices = [[3,4,5]]
+coDimZ = 2
+system_of_parameters(R,member,colIndices,coDimZ)
+
 # EXAMPLE pseudo_diff
 R, x = polynomial_ring(ZZ, 8, "x")
 f = x[1]^2 + 3x[2]
