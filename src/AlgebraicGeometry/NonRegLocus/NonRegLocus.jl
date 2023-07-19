@@ -131,7 +131,7 @@ function pseudo_diff_helper(f, j, A, q, I::IdealQL, y::Vector)
 
   # Check for correct input? No, it'll be checked in main functions.
   gensR = gens(R)
-  Istd = standard_basis(I)
+  Istd = standard_basis(I) # could be skippable
 
   RetPoly = q * derivative(f, y[j])
 
@@ -1070,7 +1070,6 @@ function embedded_jacobian(IZ::IdealQL, IX::IdealQL, q)
   Q = ideal(R, [zero(R)])
   L = generate_L1(IZ, IX)
   # Read off regular system of parameters for non-trivial h 
-  # L_M = [L1[i][1] for i in 1:length(L1)]
   indices = empty([1])
   for member in 1:length(L)
     M = L[member][1]
@@ -1079,30 +1078,43 @@ function embedded_jacobian(IZ::IdealQL, IX::IdealQL, q)
       # break # use if only one M with det(M) divides q is enough
     end
   end
-  if length(indices) != length(L)
+  if !is_zero(length(indices)) && (length(indices) != length(L))
     L = L[indices]
   end
+  # F contains all gens(IX)\gens(IZ)
+  F = empty(gens(IX))
+  for f in gens(IX)
+    f in gens(IZ) || push!(F, f)
+  end
   # Covering by complements of the minors
-  for member in 1:length(L1) 
+  for member in 1:length(L) 
     if q in Q
       break
     end
-    M = L1[member][1]
+    M = L[member][1]
     q_new = det(M)
     Q = Q + ideal(R, [q_new])
     A = adjugate(M)
     # Jacobian matrix of IX w.r.t. local system of parameters for IZ
-    y = system_of_parameters(R, member, [L1[member][2]], codim(IZ))
+    y = system_of_parameters(R, member, [L[member][2]], codim(IZ))
+    ### TODO: Was macht system_of_parameters bei coDimZ > length ?
     s = length(y)
-    C_M = IX + ideal(R, [pseudo_diff_helper(f, j, A, q_new, IZ, y) for f in F for j in 1:s])
-    # if q_new * q is not in C_M return false
-    if !radical_membership(q_new * q, C_M)
+    # get entries for Jacobian matrix
+    diffs = empty(gens(IZ))
+    for f in F 
+      diffs = vcat(diffs, [pseudo_diff_helper(f, j, A, q_new, IZ, y) for j in 1:s])
+    end
+    # construct (s-r) x (n-r) Jacobian matrix
+    n = ngens(R)
+    Jac = matrix(R, length(F), s, diffs)
+    # c = codim(V(IX) intersect D(q) subset V(IZ) intersect D(q))
+    J = IX + ideal(R, minors(Jac, c))
+    if !radical_membership(q_new * q, J)
       return false
     end
   end
-
+  return true
 end
-
 
 
 
