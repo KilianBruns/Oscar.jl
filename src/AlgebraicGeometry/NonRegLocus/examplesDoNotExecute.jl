@@ -127,7 +127,7 @@ IX = IZ + ideal(R, [7*x[2]^5, 26*x[5]^3]) # working # 2, 3, 13
 interesting_primes(IZ, IX)
 
 # EXAMPLE replace_coeffs
-R,(x,y )=polynomial_ring(ZZ, ["x", "y"])
+R,(x, y)=polynomial_ring(ZZ, ["x", "y"])
 I = ideal(R, [6x^2 + 10y^3])
 p = 2
 II = ideal(R, [44x^3 + 48*y^4, 15y^2 + 66x])
