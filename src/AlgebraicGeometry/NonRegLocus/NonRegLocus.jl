@@ -15,8 +15,8 @@ export loc_greq_2
 export loc_greq_b
 export is_regular
 
-#export MaxOrd
-#export MaxOrdArith
+export MaxOrd
+export MaxOrdArith
 
 export hybrid_smoothness_test
 export delta_check
@@ -70,7 +70,7 @@ function system_of_parameters(R, member::Int64, colIndices, coDimZ::Int64)
     for k in 1:coDimZ
       j == Spaltenvector[k] && (equal = 1)
     end
-    equal == 0 && (y = push!(y, gens(R)[j]))
+    equal == 0 && push!(y, gens(R)[j])
   end
   return (y)
 end
@@ -382,7 +382,7 @@ function replace_coeffs(I::IdealQL, p)
       gg = gg + r*gens(Rp)[end]^e*m # puzzle terms back together
       # println(r*gens(Rp)[end]^e*m) 
     end
-    GenList = push!(GenList, gg)
+    push!(GenList, gg)
   end
   return (ideal(Rp, GenList))
 end
@@ -615,7 +615,7 @@ function loc_greq_2(IX::IdealQL)
   baseRing = base_ring(R)
   Itemp = IX
   if baseRing == ZZ
-    PrimeList = interesting_primes(IZ, IX)
+    PrimeList = interesting_primes(IX)
     for p in PrimeList
       JX = replace_coeffs(IX, p)
 
@@ -767,7 +767,7 @@ function is_regular(IX::IdealQL)
     # F = [f for f in D_IX if !(f in gens(IX))]
     println("one in D_IX")
     gensIX = gens(IX)
-    IX_deriv = ideal_diff(IX)
+    IX_deriv = ideal_diff(IX) # PROBLEM bei base_ring = ZZ (?)
     # finde ueberdeckung von X, speichere Karten in Vektor F
     Itemp = IX
     F = empty(gens(IX))
