@@ -80,11 +80,6 @@ IZ = ideal(R, [x - 4y + 6z])
 interesting_primes(IZ, IX)  # error (subset)
 
 R, (x,y,z) = polynomial_ring(ZZ, ["x","y","z"])
-IZ = ideal(R, [x - 4y + 6z])
-IX = IZ + ideal(R, [3x - y + 7z])
-interesting_primes(IZ, IX)  # 2, 3, 7, 11 (returs only 2 and 3 at the moment)
-
-R, (x,y,z) = polynomial_ring(ZZ, ["x","y","z"])
 IZ = ideal(R, [z])
 IX = IZ + ideal(R, [11^2 + x*y])
 interesting_primes(IZ, IX)  # 11 ?
@@ -125,6 +120,25 @@ IZ = ideal(R, [12*x[4]])
 IX = IZ + ideal(R, [3])
 IX = IZ + ideal(R, [7*x[2]^5, 26*x[5]^3]) # working # 2, 3, 13
 interesting_primes(IZ, IX)
+
+# Example 4.7
+R, (x, y) = polynomial_ring(ZZ, ["x", "y"])
+IZ = ideal(R, [zero(R)])
+IX = ideal(R, [x^2 - 5^2*y^3])
+
+# Example 4.8
+R, (x, y, z) = polynomial_ring(ZZ, ["x","y","z"])
+g = x - 4y + 6z
+f = 3x - y + 7z
+IZ = ideal(R, [g])
+IX = IZ + ideal(R, [f])
+interesting_primes(IZ, IX)  # 2, 3, 7, 11 (returs only 2 and 3 at the moment)
+
+# Example 4.9
+R, (x, y, z) = polynomial_ring(ZZ, ["x", "y", "z"])
+p = ZZ(3) # p is prime
+IZ = ideal(R, [p - x^p])
+IX = IZ + ideal(R, [x^2 + x^p*y])
 
 # EXAMPLE replace_coeffs
 R,(x, y)=polynomial_ring(ZZ, ["x", "y"])
@@ -338,7 +352,6 @@ MaxOrdArith(IZ, IX)
 R, (v,w,x,y,z) = polynomial_ring(ZZ, ["v","w","x","y","z"], ordering=:deglex)
 IZ = ideal(R, [1-6x^2*y^3])
 IX = IZ + ideal(R, [v^2 + 5*w^3])
-
 MaxOrdArith(IZ, IX)
 
 

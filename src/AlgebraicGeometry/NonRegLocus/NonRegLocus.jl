@@ -324,6 +324,7 @@ function interesting_primes(IZ::IdealQL, IX::IdealQL)
 
   # no need to union resultList with primefactors here, resultList was empty
   resultList = primefactors(IZ)
+  # resultList = primefactors(IX)
   coDimZ = codimension(IZ)
   JZ = transpose(jacobi_matrix(gens(IZ)))
   # may have to do this a diffrent way; not intersecting with D(p_1*...*p_alpha) yet
@@ -421,6 +422,7 @@ function hasse_deriv(IZ,IX)
   # QUESTION: Should tempid be an ideal or a list/vector?
   tempid = gens(IX)
   RetList = [IX]
+  # RetList = empty([IX])
   varR = vcat(gens(R), ones(ZZRingElem, n)) # TODO: fmpz gibts nicht mehr wenn der dev-tree genutzt wird # fmpz -> ZZRingElem, fmpq -> QQFieldElem
 
   while i == 1 || tempid != gens(RetList[i-1])  # Comparing ideals was a bad idea # A little loophole: 2nd condition would throw an error at the first iteration but because i==1 is true the 2nd conditions check is skipped.
@@ -467,8 +469,8 @@ function hasse_deriv(IZ,IX,y,M)
   A = adjugate(M)
 
   Itemp = IX
-  RetList = [IX] # List of ideals to return. 
-  # RetList = empty([It]) # Maybe we don't need IX as first entry?
+  RetList = [IX] # List of ideals to return.
+  # RetList = empty([IX]) # Maybe we don't need IX as first entry?
   Null = zeros(ZZ, length(y)) 
 
   L = [[f[i],Null] for i in 1:r]
@@ -545,7 +547,7 @@ function ideal_diff(IZ::IdealQL, IX::IdealQL)
       M = L1[member][1]
       detM = det(M)
       A = adjugate(M)
-      y = system_of_parameters(Rtemp, member, L1[member][2], coDimZ)
+      y = system_of_parameters(R, member, L1[member][2], coDimZ)
       F = [f for f in gens(IX) if !(f in IZ)]
       IX_deriv = IX_deriv + [pseudo_diff(f, j, A, detM, IZ, y) for j in 1:length(y) for f in F if !(is_zero(pseudo_diff(f, j, A, detM, IZ, y)))]
     end
@@ -616,11 +618,14 @@ function loc_greq_2(IX::IdealQL)
   Itemp = IX
   if baseRing == ZZ
     PrimeList = interesting_primes(IX)
+    if length(PrimeList) == 0
+      Itemp = Itemp + ideal(R, ideal_diff(IX))
+    end
     for p in PrimeList
       JX = replace_coeffs(IX, p)
 
       JX_deriv = ideal_diff(JX)
-      Vars = push!(gens(R), R(p))
+      Vars = vcat(gens(R), R(p))
       Itemp = Itemp + ideal(R, [evaluate(f, Vars) for f in JX_deriv])
     end
   elseif characteristic(baseRing) == 0
@@ -630,6 +635,7 @@ function loc_greq_2(IX::IdealQL)
   else
     return ("How did i get here?")
   end
+  return (ideal(R, collect(standard_basis(Itemp))))
 end
 
 function loc_greq_2(IZ::IdealQL, IX::IdealQL)
@@ -648,12 +654,15 @@ function loc_greq_2(IZ::IdealQL, IX::IdealQL)
 
   if baseRing == ZZ # base_ring ZZ
     PrimeList = interesting_primes(IZ, IX)
+    if length(PrimeList) == 0
+      Itemp = Itemp + ideal(R, ideal_diff(IX))
+    end
     for p in PrimeList
       JX = replace_coeffs(IX, p)
       JZ = replace_coeffs(IZ, p)
 
       JX_deriv = ideal_diff(JZ, JX)
-      Vars = push!(gens(R), R(p))
+      Vars = vcat(gens(R), R(p))
       Itemp = Itemp + ideal(R, [evaluate(f, Vars) for f in JX_deriv])
     end
   elseif characteristic(baseRing) == 0 # char == 0
@@ -767,7 +776,24 @@ function is_regular(IX::IdealQL)
     # F = [f for f in D_IX if !(f in gens(IX))]
     println("one in D_IX")
     gensIX = gens(IX)
-    IX_deriv = ideal_diff(IX) # PROBLEM bei base_ring = ZZ (?)
+
+    # Leite Erzeuger von IX jeweils einmal nach allen Variablen ab
+    IX_deriv = empty(gens(IX))
+    if base_ring(R) == ZZ 
+      PrimeList = interesting_primes(IX)
+      if length(PrimeList) == 0
+        IX_deriv = ideal_diff(IX)
+      end
+      for p in PrimeList
+        JX = replace_coeffs(IX, p)
+
+        JX_deriv = ideal_diff(JX)
+        Vars = vcat(gens(R), R(p))
+        IX_deriv = vcat(IX_deriv, [evaluate(f, Vars) for f in JX_deriv if !(evaluate(f, Vars) in IX_deriv)])
+      end
+    else
+      IX_deriv = ideal_diff(IX) # PROBLEM bei base_ring = ZZ (?)
+    end
     # finde ueberdeckung von X, speichere Karten in Vektor F
     Itemp = IX
     F = empty(gens(IX))
@@ -777,7 +803,15 @@ function is_regular(IX::IdealQL)
       # !(one(R) in Itemp) || break  
       !(radical_membership(one(R), Itemp)) || break # radical_membership
     end
-    # weiter Anforderungen an die f nach Konstruktion erfuellt
+    # weitere Anforderungen an die f nach Konstruktion erfuellt
+    # Cool! ...und was mache ich jetzt mit der Überdeckung? :D
+
+    # adding each gen of IX seperatly to IZ and running is_regular with it
+    FF = gens(IX)
+    for ff in FF 
+      IZ = ideal(R, [ff])
+      is_regular(IZ, IX)
+    end
     
   else
     return false
@@ -934,27 +968,32 @@ function MaxOrdArith(IZ::IdealQL, IX::IdealQL)
     else  # case IZ != <0>
       coDimZ = codimension(IZ)
       JJZ = transpose(jacobi_matrix(gens(JZ)))
-      L1 = generate_L1(coDimZ, JJZ, IX, IZ)
+      L1 = generate_L1(coDimZ, JJZ, JX, JZ)
       locord = 1
       for member in 1:length(L1)
+        M = L1[member][1]
         # y = system_of_parameters
-        y = system_of_parameters(R, member::Int64, colIndices, coDimZ::Int64)
+        y = system_of_parameters(base_ring(JX), member, L1[member][2], coDimZ)
         DiffList = hasse_deriv(JZ, JX, y, M)
+        println("hasse_deriv finished")
         m = length(DiffList)
         Vars = push!(gens(R), R(p))
         for i in 1:m
           DiffList[i] = ideal(R, [evaluate(f, Vars) for f in gens(DiffList[i])])
         end
+        println("finished substituting P with p")
         while one(R) in DiffList[m]
-          m = m -1
+          m = m - 1
         end
+        println("finished reducing m")
         if m > locord 
           Imax = DiffList[m]
           locord = m
         elseif m == locord
-          Imax = union(Imax, DiffList[m])
+          Imax = intersect(Imax, DiffList[m])
         end
       end
+      println("end for")
       if locord >= maxord
         if locord > maxord
           RetList = empty(RetList[1])
