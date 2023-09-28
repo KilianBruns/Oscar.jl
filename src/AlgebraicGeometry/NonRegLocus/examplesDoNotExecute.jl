@@ -402,3 +402,77 @@ test3(1)		# error as intended
 test3(1.0)		# working
 test4(1)		# working
 test4(1.0)		# working
+
+
+
+# EXPAMLES from the papers
+
+# 2.5
+R,(x, y, z) = polynomial_ring(ZZ, ["x", "y", "z"])
+IZ = ideal(R, [zero(R)])
+IX = ideal(R, [x^2 - y^2*z])
+is_regular(IZ, IX)
+
+# 2.7
+R,(v, w, x, y, z) = polynomial_ring(ZZ, ["v", "w", "x", "y", "z"])
+p = 2
+m = ideal(R, [p, v, w, x, y, z])
+S = complement_of_prime_ideal(m)
+Rloc, iota = localization(R, S)
+IZ = ideal(Rloc, [zero(R)])
+IX = ideal(Rloc, [p, v, w^2 - y^2, z^5 - y^2*x^5])
+is_regular(IZ, IX)
+
+# 2.14
+R,(x, y) = polynomial_ring(ZZ, ["x", "y"])
+IZ = ideal(R, [zero(R)])
+IX = ideal(R, [x^2 -  y^3*5^7*(y - 2)^4])
+is_regular(IZ, IX)
+
+# 3.2
+R,(u, v) = polynomial_ring(ZZ, ["u", "v"])
+IZ = ideal(R, [zero(R)])
+IX = ideal(R, [12 - u*v^2])
+is_regular(IZ, IX)
+
+# 4.3  # 4.8  # 4.17
+R,(x, y, z) = polynomial_ring(ZZ, ["x", "y", "z"])
+IZ = ideal(R, [x - 4y + 6z])
+IX = IZ + ideal(R, [3x - y + 7z])
+is_regular(IZ, IX)
+
+# 4.7
+R,(x, y) = polynomial_ring(ZZ, ["x", "y"])
+IZ = ideal(R, [zero(R)])
+IX = ideal(R, [x^2 - 5^9*y^3])
+is_regular(IZ, IX)
+
+# 4.9
+R,(x, y, z) = polynomial_ring(ZZ, ["x", "y", "z"])
+p = 3
+IZ = ideal(R, [p - x^p])
+IX = IZ + ideal(R, [z^2 + x^p*y])
+is_regular(IZ, IX)
+
+# 4.10
+R,(x, y) = polynomial_ring(ZZ, ["x", "y"])
+IZ = ideal(R, [zero(R)])
+IX = ideal(R, [3^2*x^2 - 5^2*y^2])
+is_regular(IZ, IX)
+
+# 4.15
+R,(x, y) = polynomial_ring(ZZ, ["x", "y"])
+IZ = ideal(R, [zero(R)])
+IX = ideal(R, [3^2*5^2 + 5*x*y + x^3*y^3])
+is_regular(IZ, IX)
+
+# 4.16
+R,(x, y, z) = polynomial_ring(ZZ, ["x", "y", "z"])
+p = 3
+IZ = ideal(R, [zero(R)])
+IX = IZ + ideal(R, [x^2 - y^17, p^5 - y^2*z^6])
+is_regular(IZ, IX)
+
+
+
+

@@ -10,6 +10,7 @@ export interesting_primes
 export replace_coeffs
 export hasse_deriv
 export ideal_diff
+export ideal_diff_all
 
 export loc_greq_2
 export loc_greq_b
@@ -22,11 +23,6 @@ export hybrid_smoothness_test
 export delta_check
 #export descend_embedding_smooth
 #export embedded_jacobian
-
-### Unions
-
-IdealQL = Union{MPolyIdeal, MPolyLocalizedIdeal, MPolyQuoIdeal, MPolyQuoLocalizedIdeal}
-RingQL = Union{MPolyRing,MPolyLocRing,MPolyQuoRing,MPolyQuoLocRing} 
 
 ####################################################################################
 #####################   CODIMENSION OF AN IDEAL   ##################################
@@ -97,7 +93,7 @@ end
 # INPUT:	
 # OUTPUT:	
 
-function pseudo_diff(f, j, A, q, I::IdealQL, y::Vector)
+function pseudo_diff(f, j, A, q, I::Ideal, y::Vector)
   R = base_ring(I)
 
   # Check for correct input? No, it'll be checked in main functions.
@@ -126,7 +122,7 @@ function pseudo_diff(f, j, A, q, I::IdealQL, y::Vector)
 end
 
 # slightly different to be used in delta_check
-function pseudo_diff_helper(f, j, A, q, I::IdealQL, y::Vector)
+function pseudo_diff_helper(f, j, A, q, I::Ideal, y::Vector)
   R = base_ring(I)
 
   # Check for correct input? No, it'll be checked in main functions.
@@ -168,7 +164,7 @@ function primefactors(N)
 end
 
 # to get a vector of all prime factors of the coefficients of all generators of an ideal
-function primefactors(I::IdealQL)
+function primefactors(I::Ideal)
   returnList = empty([zero(base_ring(base_ring(I)))])
   for g in gens(I)
     for c in coefficients(g)
@@ -188,7 +184,7 @@ end
 
 # returns all submatricies M with det(M) != 0
 # for using in delta_check
-function generate_L1(IZ::IdealQL, IX::IdealQL)
+function generate_L1(IZ::Ideal, IX::Ideal)
   R = base_ring(IZ)
   coDimZ = codimension(IZ)
   JZ = transpose(jacobi_matrix(gens(IZ)))
@@ -219,7 +215,7 @@ function generate_L1(IZ::IdealQL, IX::IdealQL)
   return L1
 end
 
-function generate_L1(coDimZ::Int64, JZ, IX::IdealQL, IZ::IdealQL)
+function generate_L1(coDimZ::Int64, JZ, IX::Ideal, IZ::Ideal)
   R = base_ring(IZ)
   maxcol = ncols(JZ)
   maxrow = nrows(JZ)
@@ -245,7 +241,7 @@ function generate_L1(coDimZ::Int64, JZ, IX::IdealQL, IZ::IdealQL)
 end
 
 # this it needed to get an covering for interesting_primes
-function generate_L1(coDimZ::Int64, JZ, IX::IdealQL, IZ::IdealQL, primeprod)
+function generate_L1(coDimZ::Int64, JZ, IX::Ideal, IZ::Ideal, primeprod)
   R = base_ring(IZ)
   maxcol = ncols(JZ)
   maxrow = nrows(JZ)
@@ -288,7 +284,7 @@ end
 # INPUT:	Ideals IZ and IX
 # OUTPUT:	
 
-function interesting_primes(IX::IdealQL)
+function interesting_primes(IX::Ideal)
   R = base_ring(IX)
   n = ngens(R)
   Itemp = IX
@@ -302,7 +298,7 @@ function interesting_primes(IX::IdealQL)
   return resultList
 end
 
-function interesting_primes(IZ::IdealQL, IX::IdealQL)
+function interesting_primes(IZ::Ideal, IX::Ideal)
   # Checking for correct input. 
   IZ != IX || error("IZ and IX cannot be equal.")
   issubset(IZ,IX) || error("IZ needs to be a subset of IX.")
@@ -365,7 +361,7 @@ end
 # INPUT:	Ideal I and interger p
 # OUTPUT:	Ideal J which has all factors p replaced by a new variable P
 
-function replace_coeffs(I::IdealQL, p)  
+function replace_coeffs(I::Ideal, p)  
   R = base_ring(I)
   n = ngens(R)
 
@@ -517,9 +513,9 @@ end
 # Name:		ideal_diff(IZ, IX)
 # 											
 # INPUT:	Two ideals IZ and IX 
-# OUTPUT:	A vector with derivatives of generators of IX
+# OUTPUT:	A vector with derivatives of generators of IX (excluding zeros)
 
-function ideal_diff(IX::IdealQL)
+function ideal_diff(IX::Ideal)
   R = base_ring(IX)
   baseRing = base_ring(R)
   if baseRing == ZZ
@@ -534,7 +530,7 @@ function ideal_diff(IX::IdealQL)
   end 
 end
 
-function ideal_diff(IZ::IdealQL, IX::IdealQL)
+function ideal_diff(IZ::Ideal, IX::Ideal)
   is_zero(IZ) && return ideal_diff(IX)
   R = base_ring(IZ)
   baseRing = base_ring(R)
@@ -552,27 +548,7 @@ function ideal_diff(IZ::IdealQL, IX::IdealQL)
       IX_deriv = IX_deriv + [pseudo_diff(f, j, A, detM, IZ, y) for j in 1:length(y) for f in F if !(is_zero(pseudo_diff(f, j, A, detM, IZ, y)))]
     end
     return IX_deriv 
-  elseif characteristic(baseRing) == 0
-    coDimZ = codimension(IZ)
-    JZ = transpose(jacobi_matrix(gens(IZ)))
-    L1 = generate_L1(coDimZ, JZ, IX, IZ)
-    IX_deriv = empty([gens(IX)[1]])
-    for member in 1:length(L1)
-      M = L1[member][1]
-      detM = det(M)
-      A = adjugate(M) # transposed cofactor matrix of M
-      y = system_of_parameters(R, member, L1[member][2], coDimZ)
-      F = [f for f in gens(IX) if !(f in IZ)]
-      IX_deriv_temp = [pseudo_diff(f, j, A, detM, IZ, y) for j in 1:length(y) for f in F if !(is_zero(pseudo_diff(f, j, A, detM, IZ, y)))]
-      IX_deriv = vcat(IX_deriv, IX_deriv_temp)
-      # don't know how to "saturate a vector". Good bye time efficiency. Also: Bye bye units.
-      for i in 1:length(IX_deriv) # saturating w.r.t. detM
-        IX_deriv[i] = gens(saturation(ideal(R, IX_deriv[i]), ideal(R, [detM])))[1]
-      end
-    end
-    return IX_deriv
-  elseif characteristic(baseRing) > 0
-    # no hasse_deriv, bc first hasse schmidt derivative is equal to the first normal derivative
+  elseif characteristic(baseRing) >= 0
     coDimZ = codimension(IZ)
     JZ = transpose(jacobi_matrix(gens(IZ)))
     L1 = generate_L1(coDimZ, JZ, IX, IZ)
@@ -596,6 +572,76 @@ function ideal_diff(IZ::IdealQL, IX::IdealQL)
   end
 end
 
+# INPUT:	Two ideals IZ and IX 
+# OUTPUT:	A vector with all derivatives of generators of IX (including zeros)
+
+function ideal_diff_all(IX::Ideal)
+  R = base_ring(IX)
+  baseRing = base_ring(R)
+  if baseRing == ZZ || characteristic(baseRing) >= 0
+    return [[derivative(gens(IX)[k], var), k] for k in 1:length(gens(IX)) for var in gens(R)]
+  else
+    return ("How did i get here?")
+  end 
+end
+
+function ideal_diff_all(IZ::Ideal, IX::Ideal)
+  is_zero(IZ) && return ideal_diff_all(IX)
+
+  if baseRing == ZZ
+    # TODO: for loot over generators around 604
+    ###
+    coDimZ = codimension(IZ)
+    JZ = transpose(jacobi_matrix(gens(IZ)))
+    L1 = generate_L1(coDimZ, JZ, IX, IZ)
+    IX_deriv = empty([gens(IX)[1]])
+    for member in 1:length(L1)
+      M = L1[member][1]
+      detM = det(M)
+      A = adjugate(M)
+      y = system_of_parameters(R, member, L1[member][2], coDimZ)
+      F = [f for f in gens(IX) if !(f in IZ)]
+      IX_deriv = IX_deriv + [pseudo_diff(f, j, A, detM, IZ, y) for j in 1:length(y) for f in F if !(is_zero(pseudo_diff(f, j, A, detM, IZ, y)))]
+    end
+    return IX_deriv
+    ###
+  elseif characteristic(baseRing) >= 0
+    # TODO: for loot over generators around 621
+    ###
+    coDimZ = codimension(IZ)
+    JZ = transpose(jacobi_matrix(gens(IZ)))
+    L1 = generate_L1(coDimZ, JZ, IX, IZ)
+    IX_deriv = empty([gens(IX)[1]])
+    for member in 1:length(L1)
+      M = L1[member][1]
+      detM = det(M)
+      A = adjugate(M) # transposed cofactor matrix of M
+      y = system_of_parameters(R, member, L1[member][2], coDimZ)
+      F = [f for f in gens(IX) if !(f in IZ)]
+      IX_deriv_temp = [pseudo_diff(f, j, A, detM, IZ, y) for j in 1:length(y) for f in F if !(is_zero(pseudo_diff(f, j, A, detM, IZ, y)))]
+      IX_deriv = vcat(IX_deriv, IX_deriv_temp)
+      # don't know how to "saturate a vector". Good bye time efficiency. Also: Bye bye units.
+      for i in 1:length(IX_deriv) # saturating w.r.t. detM
+        IX_deriv[i] = gens(saturation(ideal(R, IX_deriv[i]), ideal(R, [detM])))[1]
+      end
+    end
+    return IX_deriv
+    ###
+  else
+    return ("How did i get here?")
+  end
+
+
+  allDerivs = empty([gens(IX)[1], 1])
+  gensIX = gens(IX)
+  for k in 1:length(gensIX)
+    for var in gens(R)
+      push!(allDerivs, [derivative(gensIX[k], var), k])
+    end
+  end
+
+end
+
 ####################################################################################
 ######################   LOCUS OF ORDER GREATER OR EQUAL 2  ######################## 
 # Name:		loc_greq_2
@@ -612,7 +658,7 @@ end
 # - Fall 2: MPolyRing über Körper der Char>0 (via Überladen)
 # - Fall 3: MPolyRing über ZZ (via Überladen)
 
-function loc_greq_2(IX::IdealQL)
+function loc_greq_2(IX::Ideal)
   R = base_ring(IX)
   baseRing = base_ring(R)
   Itemp = IX
@@ -638,7 +684,7 @@ function loc_greq_2(IX::IdealQL)
   return (ideal(R, collect(standard_basis(Itemp))))
 end
 
-function loc_greq_2(IZ::IdealQL, IX::IdealQL)
+function loc_greq_2(IZ::Ideal, IX::Ideal)
   R = base_ring(IZ)
   base_ring(IX) === R || error("IZ and IX need to be defined in the same ring")
   IZ !== IX || error("IZ and IX cannot be equal.")
@@ -713,7 +759,7 @@ function loc_greq_b(IZ::MPolyQuoIdeal, IX::MPolyQuoIdeal, b::Int64)
 
 end
 
-function loc_greq_b(IZ::IdealQL, IX::IdealQL, b::Int64)
+function loc_greq_b(IZ::Ideal, IX::Ideal, b::Int64)
   R = base_ring(IZ)
 
   # Checking for correct input. 
@@ -767,7 +813,7 @@ end
 # INPUT:	Ideals IZ and IX 
 # OUTPUT:	true/false whether X is/isn't regular
 
-function is_regular(IX::IdealQL)
+function is_regular(IX::Ideal)
   R = base_ring(IX)
   D_IX = loc_greq_2(IX)
 
@@ -776,69 +822,78 @@ function is_regular(IX::IdealQL)
     # F = [f for f in D_IX if !(f in gens(IX))]
     println("one in D_IX")
     gensIX = gens(IX)
-
-    # Leite Erzeuger von IX jeweils einmal nach allen Variablen ab
-    IX_deriv = empty(gens(IX))
+    IX_deriv_all = empty([gensIX[1], 1])
     if base_ring(R) == ZZ 
       PrimeList = interesting_primes(IX)
       if length(PrimeList) == 0
-        IX_deriv = ideal_diff(IX)
+        IX_deriv_all = ideal_diff_all(IX)
       end
       for p in PrimeList
         JX = replace_coeffs(IX, p)
-
-        JX_deriv = ideal_diff(JX)
+        JX_deriv_all = ideal_diff_all(JX)
         Vars = vcat(gens(R), R(p))
-        IX_deriv = vcat(IX_deriv, [evaluate(f, Vars) for f in JX_deriv if !(evaluate(f, Vars) in IX_deriv)])
+        IX_deriv_all = vcat(IX_deriv_all, [evaluate(f, Vars) for f in JX_deriv_all if !(evaluate(f, Vars) in IX_deriv_all)])
       end
     else
-      IX_deriv = ideal_diff(IX) # PROBLEM bei base_ring = ZZ (?)
+      IX_deriv_all = ideal_diff_all(IX)
     end
-    # finde ueberdeckung von X, speichere Karten in Vektor F
-    Itemp = IX
-    F = empty(gens(IX))
-    for f in IX_deriv
-      Itemp = Itemp + ideal(R, [f])
-      push!(F, f)
-      # !(one(R) in Itemp) || break  
-      !(radical_membership(one(R), Itemp)) || break # radical_membership
+    # finding a linear combination of derivatives that generates 1
+    linearCombi = coordinates([IX_deriv_all[i][1] for i in 1:length(IX_deriv_all)], one(R))
+    IZ = ideal(R, [zero(R)])
+    # adding generators of IX to IZ if their derivatives are part of linear combination from above
+    for k in 1:rank(parent(linearCombi)) # rank(parent(linearCombi)) 
+      linearCombi[k] == zero(R) || (IZ = IZ + ideal(R, [gensIX[IX_deriv_all[k][2]]]))
     end
-    # weitere Anforderungen an die f nach Konstruktion erfuellt
-    # Cool! ...und was mache ich jetzt mit der Überdeckung? :D
-
-    # adding each gen of IX seperatly to IZ and running is_regular with it
-    FF = gens(IX)
-    for ff in FF 
-      IZ = ideal(R, [ff])
-      is_regular(IZ, IX)
-    end
-    
+    return is_regular(IZ, IX)
   else
     return false
   end
 end
 
-function is_regular(IZ::IdealQL, IX::IdealQL)
+function is_regular(IZ::Ideal, IX::Ideal)
   R = base_ring(IZ)
   base_ring(IX) === R || error("IZ and IX need to be defined in the same ring")
-  IZ !== IX || error("IZ and IX cannot be equal.")
   issubset(IZ, IX) || error("IZ needs to be a subset of IX.")
+
+  # base case of the recursion
+  IZ === IX && return true
 
   is_zero(IZ) && return is_regular(IX)
 
-  # return one(R) in loc_greq_2(IZ::IdealQL, IX::IdealQL) ? true : false
+  # return one(R) in loc_greq_2(IZ::Ideal, IX::Ideal) ? true : false
   # Doesn't work like that. See example IX = <x, y^2 - z^2>
 
   D_IX = loc_greq_2(IZ, IX)
+  # Alternative to following if clause:
+  # one(R) in D_IX || return false
 
   if one(R) in D_IX
-    
+    println("one in D_IX")
+    # gens of IX that aren't in IZ
+    gensIX = [f for f in gens(IX) if !(f in gens(IZ))]
+    IX_deriv_all = empty([gensIX[1], 1])
+    if base_ring == ZZ
+      PrimeList = interesting_primes(IZ, IX)
+      if length(PrimeList) == 0
+        IX_deriv_all = ideal_diff_all(IZ, IX)
+      end
+      for p in PrimeList
+        JX = replace_coeffs(IX, p)
+        JZ = replace_coeffs(IZ, p)
+        JX_deriv_all = ideal_diff_all(JZ, JX)
+        Vars = vcat(gens(R), R(p))
+        # TODO: handle new structure of JX_deriv_all and IX_deriv_all
+        IX_deriv_all = vcat(IX_deriv_all, [evaluate(f, Vars) for f in JX_deriv_all if !(evaluate(f, Vars) in IX_deriv_all)])
+      end
+    else
+      IX_deriv_all = ideal_diff_all(IZ, IX)
+    end
 
-    
+    # TODO: recursive stuff...
+
   else
     return false
   end
-  
 end
 
 ####################################################################################
@@ -923,7 +978,7 @@ end
 # INPUT:	Ideals IZ and IX 
 # OUTPUT:	
 
-function MaxOrdArith(IZ::IdealQL, IX::IdealQL)
+function MaxOrdArith(IZ::Ideal, IX::Ideal)
   R = base_ring(IZ)
   # TODO: Check for correct input.
   # TODO: Check for vector copy mistakes.
@@ -1015,7 +1070,7 @@ end
 # INPUT:	Ideals IZ = <f_1, ..., f_r> subset of IX = <f_1, ..., f_s> element k[x_1, ..., x_n] and a polynomial q, non-negative integer c 
 # OUTPUT:	 true if V(IX intersect D(q)) is smooth, false otherwise
 
-function hybrid_smoothness_test(IZ::IdealQL, IX::IdealQL, q, c)
+function hybrid_smoothness_test(IZ::Ideal, IX::Ideal, q, c)
   if dim(IZ) - dim(IX) == 0
     return true
   end
@@ -1041,7 +1096,7 @@ end
 # INPUT:	Ideals IZ = <f_1, ..., f_r> subset of IX = <f_1, ..., f_s> element k[x_1, ..., x_n] and a polynomial q
 # OUTPUT:	 true if Sing(I_{X,Z}, 2) intersect D(q) = empty set, false otherwise
 
-function delta_check(IZ::IdealQL, IX::IdealQL, q)
+function delta_check(IZ::Ideal, IX::Ideal, q)
   # First handle the case IZ=<0>, q=1; then x_1, ..., x_n induce a local
   # system of parameters at every point of Z 
   R = base_ring(IZ)
@@ -1088,7 +1143,7 @@ end
 # INPUT:	Ideals IZ = <f_1, ..., f_r> subset of IX = <f_1, ..., f_s> element k[x_1, ..., x_n] and a polynomial q
 # OUTPUT:	 Triples (IZ_i, IX, q_i)
 
-function descend_embedding_smooth(IZ::IdealQL, IX::IdealQL, q)
+function descend_embedding_smooth(IZ::Ideal, IX::Ideal, q)
   # Direct descent: no need to find an open covering of V(IX) intersect D(q)
 
   # Descent by constructing an open covering of V(IX) intersect D(q)
@@ -1104,7 +1159,7 @@ end
 # INPUT:	Ideals IZ = <f_1, ..., f_r> subset of IX = <f_1, ..., f_s> element k[x_1, ..., x_n] and a polynomial q
 # OUTPUT:	 Triples (IZ_i, IX, q_i)
 
-function embedded_jacobian(IZ::IdealQL, IX::IdealQL, q)
+function embedded_jacobian(IZ::Ideal, IX::Ideal, q)
   R = base_ring(IZ)
   Q = ideal(R, [zero(R)])
   L = generate_L1(IZ, IX)
