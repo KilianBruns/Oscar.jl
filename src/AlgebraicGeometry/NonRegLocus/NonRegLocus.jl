@@ -301,7 +301,7 @@ end
 function interesting_primes(IZ::Ideal, IX::Ideal)
   # Checking for correct input. 
   IZ != IX || error("IZ and IX cannot be equal.")
-  issubset(IZ,IX) || error("IZ needs to be a subset of IX.")
+  issubset(IZ, IX) || error("IZ needs to be a subset of IX.")
 
   is_zero(IZ) && return interesting_primes(IX)
 
@@ -545,7 +545,8 @@ function ideal_diff(IZ::Ideal, IX::Ideal)
       A = adjugate(M)
       y = system_of_parameters(R, member, L1[member][2], coDimZ)
       F = [f for f in gens(IX) if !(f in IZ)]
-      IX_deriv = IX_deriv + [pseudo_diff(f, j, A, detM, IZ, y) for j in 1:length(y) for f in F if !(is_zero(pseudo_diff(f, j, A, detM, IZ, y)))]
+      IX_deriv_temp = [pseudo_diff(f, j, A, detM, IZ, y) for j in 1:length(y) for f in F if !(is_zero(pseudo_diff(f, j, A, detM, IZ, y)))]
+      IX_deriv = vcat(IX_deriv, IX_deriv_temp)
     end
     return IX_deriv 
   elseif characteristic(baseRing) >= 0
@@ -589,25 +590,24 @@ function ideal_diff_all(IZ::Ideal, IX::Ideal)
   is_zero(IZ) && return ideal_diff_all(IX)
 
   if baseRing == ZZ
-    # TODO: for loot over generators around 604
-    ###
+    F = [f for f in gens(IX) if !(f in IZ)]  # all gens of IX not in IZ
     coDimZ = codimension(IZ)
     JZ = transpose(jacobi_matrix(gens(IZ)))
     L1 = generate_L1(coDimZ, JZ, IX, IZ)
-    IX_deriv = empty([gens(IX)[1]])
+    IX_deriv = empty([gens(IX)[1], 1])
     for member in 1:length(L1)
       M = L1[member][1]
       detM = det(M)
       A = adjugate(M)
       y = system_of_parameters(R, member, L1[member][2], coDimZ)
-      F = [f for f in gens(IX) if !(f in IZ)]
-      IX_deriv = IX_deriv + [pseudo_diff(f, j, A, detM, IZ, y) for j in 1:length(y) for f in F if !(is_zero(pseudo_diff(f, j, A, detM, IZ, y)))]
+      IX_deriv_temp = [[pseudo_diff(F[k], j, A, detM, IZ, y), k] for j in 1:length(y) for k in 1:length(F)]
+      IX_deriv = vcat(IX_deriv, IX_deriv_temp)
     end
     return IX_deriv
-    ###
   elseif characteristic(baseRing) >= 0
-    # TODO: for loot over generators around 621
+    # TODO: for loop over generators around 621
     ###
+    F = [f for f in gens(IX) if !(f in IZ)]  # all gens of IX not in IZ
     coDimZ = codimension(IZ)
     JZ = transpose(jacobi_matrix(gens(IZ)))
     L1 = generate_L1(coDimZ, JZ, IX, IZ)
@@ -618,28 +618,17 @@ function ideal_diff_all(IZ::Ideal, IX::Ideal)
       A = adjugate(M) # transposed cofactor matrix of M
       y = system_of_parameters(R, member, L1[member][2], coDimZ)
       F = [f for f in gens(IX) if !(f in IZ)]
-      IX_deriv_temp = [pseudo_diff(f, j, A, detM, IZ, y) for j in 1:length(y) for f in F if !(is_zero(pseudo_diff(f, j, A, detM, IZ, y)))]
+      IX_deriv_temp = [[pseudo_diff(F[k], j, A, detM, IZ, y), k] for j in 1:length(y) for k in 1:length(F)]
       IX_deriv = vcat(IX_deriv, IX_deriv_temp)
       # don't know how to "saturate a vector". Good bye time efficiency. Also: Bye bye units.
       for i in 1:length(IX_deriv) # saturating w.r.t. detM
-        IX_deriv[i] = gens(saturation(ideal(R, IX_deriv[i]), ideal(R, [detM])))[1]
+        IX_deriv[i] = gens(saturation(ideal(R, IX_deriv[i][1]), ideal(R, [detM])))[1]
       end
     end
     return IX_deriv
-    ###
   else
     return ("How did i get here?")
   end
-
-
-  allDerivs = empty([gens(IX)[1], 1])
-  gensIX = gens(IX)
-  for k in 1:length(gensIX)
-    for var in gens(R)
-      push!(allDerivs, [derivative(gensIX[k], var), k])
-    end
-  end
-
 end
 
 ####################################################################################
@@ -832,19 +821,21 @@ function is_regular(IX::Ideal)
         JX = replace_coeffs(IX, p)
         JX_deriv_all = ideal_diff_all(JX)
         Vars = vcat(gens(R), R(p))
-        IX_deriv_all = vcat(IX_deriv_all, [evaluate(f, Vars) for f in JX_deriv_all if !(evaluate(f, Vars) in IX_deriv_all)])
+        # IX_deriv_all = vcat(IX_deriv_all, [evaluate(f, Vars) for f in JX_deriv_all if !(evaluate(f, Vars) in IX_deriv_all)])
+        IX_deriv_all = vcat(IX_deriv_all, [[evaluate(JX_deriv_all[i][1], Vars), JX_deriv_all[i][2]] for i in 1:length(JX_deriv_all)])
       end
     else
       IX_deriv_all = ideal_diff_all(IX)
     end
     # finding a linear combination of derivatives that generates 1
     linearCombi = coordinates([IX_deriv_all[i][1] for i in 1:length(IX_deriv_all)], one(R))
-    IZ = ideal(R, [zero(R)])
     # adding generators of IX to IZ if their derivatives are part of linear combination from above
-    for k in 1:rank(parent(linearCombi)) # rank(parent(linearCombi)) 
-      linearCombi[k] == zero(R) || (IZ = IZ + ideal(R, [gensIX[IX_deriv_all[k][2]]]))
+    for k in 1:rank(parent(linearCombi)) # rank(parent(linearCombi)) conveniently is the same number as length(IX_deriv_all)
+      if linearCombi[k] != zero(R) # true for at least one k, otherwise D_IX wouldn't have been <1> in the first place
+        IZ = ideal(R, [gensIX[IX_deriv_all[k][2]]])
+        return is_regular(IZ, IX)
+      end
     end
-    return is_regular(IZ, IX)
   else
     return false
   end
@@ -856,12 +847,9 @@ function is_regular(IZ::Ideal, IX::Ideal)
   issubset(IZ, IX) || error("IZ needs to be a subset of IX.")
 
   # base case of the recursion
-  IZ === IX && return true
+  IZ == IX && return true
 
   is_zero(IZ) && return is_regular(IX)
-
-  # return one(R) in loc_greq_2(IZ::Ideal, IX::Ideal) ? true : false
-  # Doesn't work like that. See example IX = <x, y^2 - z^2>
 
   D_IX = loc_greq_2(IZ, IX)
   # Alternative to following if clause:
@@ -882,15 +870,21 @@ function is_regular(IZ::Ideal, IX::Ideal)
         JZ = replace_coeffs(IZ, p)
         JX_deriv_all = ideal_diff_all(JZ, JX)
         Vars = vcat(gens(R), R(p))
-        # TODO: handle new structure of JX_deriv_all and IX_deriv_all
-        IX_deriv_all = vcat(IX_deriv_all, [evaluate(f, Vars) for f in JX_deriv_all if !(evaluate(f, Vars) in IX_deriv_all)])
+        IX_deriv_all = vcat(IX_deriv_all, [[evaluate(JX_deriv_all[i][1], Vars), JX_deriv_all[i][2]] for i in 1:length(JX_deriv_all)])
       end
     else
       IX_deriv_all = ideal_diff_all(IZ, IX)
     end
-
     # TODO: recursive stuff...
-
+    # finding a linear combination of derivatives that generates 1
+    linearCombi = coordinates([IX_deriv_all[i][1] for i in 1:length(IX_deriv_all)], one(R))
+    # adding generators of IX to IZ if their derivatives are part of linear combination from above
+    for k in 1:rank(parent(linearCombi)) # rank(parent(linearCombi)) conveniently is the same number as length(IX_deriv_all)
+      if linearCombi[k] != zero(R) # true for at least one k, otherwise D_IX wouldn't have been <1> in the first place
+        IZ_new = IZ + ideal(R, [gensIX[IX_deriv_all[k][2]]])
+        return is_regular(IZ_new, IX)
+      end
+    end
   else
     return false
   end
