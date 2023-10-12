@@ -3,7 +3,7 @@ export system_of_parameters
 export adjugate
 export pseudo_diff
 export pseudo_diff_helper
-export primefactors
+export appearing_primefactors # appearing_primefactors
 export generate_L1
 export integer_generator
 export interesting_primes
@@ -47,14 +47,16 @@ end
 # INPUT:	
 # OUTPUT:	
 
-# TODO: Irgendwie muss ich auch auf den Ring und dessen Variablen zugreifen, aus denen das Parametersystem gebildet werden soll 
-	# a) Ring aus Übergabeparameter
-	# b) IZ übergeben und coDimZ und base_ring hier ermitteln
+# es genügt diese einfache Variante von system_of_parameters, da eine triviale Korrespondez zwischen colIndices und dem Parametersystem existiert
+function system_of_parameters(R, colIndices)
+  systemOfParameters = [gens(R)[i] for i in 1:ngens(R) if i in colIndices]
+  return systemOfParameters
+end
 
 function system_of_parameters(R, member::Int64, colIndices, coDimZ::Int64)
 
   n = ngens(R)
-  y = empty(gens(R))
+  systemOfParameters = empty(gens(R))
   # Bestimme y ueber colIndices, die nicht in Spaltenvector[Spaltennummer] benutzt werden  
   NumbColIndices = length(colIndices)
   NumbSpaltenvectorM = member % NumbColIndices # Zugrundeliegender Spaltenvektor aus JZ
@@ -66,9 +68,9 @@ function system_of_parameters(R, member::Int64, colIndices, coDimZ::Int64)
     for k in 1:coDimZ
       j == Spaltenvector[k] && (equal = 1)
     end
-    equal == 0 && push!(y, gens(R)[j])
+    equal == 0 && push!(systemOfParameters, gens(R)[j])
   end
-  return (y)
+  return (systemOfParameters)
 end
 
 ####################################################################################
@@ -93,55 +95,53 @@ end
 # INPUT:	
 # OUTPUT:	
 
-function pseudo_diff(f, j, A, q, I::Ideal, y::Vector)
+function pseudo_diff(f, j, A, q, I::Ideal, systemOfParameters::Vector)
   R = base_ring(I)
 
   # Check for correct input? No, it'll be checked in main functions.
   gensR = gens(R)
-  Istd = standard_basis(I)
-
-  RetPoly = q * derivative(f, y[j])
-  F = reduce(f, gens(Istd))
+  RetPoly = q * derivative(f, systemOfParameters[j])
 
   # Generating a list of Variables which aren't in parametersystem y
   OtherVars = empty(gensR)
   n = ngens(R)
   for k in 1:n
-    gensR[k] in y || push!(OtherVars, gensR[k])
+    gensR[k] in systemOfParameters || push!(OtherVars, gensR[k])
   end
 
   # See formular in remark 4.2
   for k in 1:ncols(A)
     for l in 1:nrows(A)
-      SubPoly = derivative(gens(I)[l], y[j]) * A[l,k] * derivative(F, OtherVars[k])
-      SubPoly = reduce(SubPoly, gens(Istd))
+      SubPoly = derivative(gens(I)[l], systemOfParameters[j]) * A[l,k] * derivative(f, OtherVars[k])
       RetPoly = RetPoly - SubPoly
     end
   end
+  Istd = standard_basis(I)
+  RetPoly = reduce(RetPoly, gens(Istd)) # mod IZ
   return (RetPoly)
 end
 
 # slightly different to be used in delta_check
-function pseudo_diff_helper(f, j, A, q, I::Ideal, y::Vector)
+function pseudo_diff_helper(f, j, A, q, I::Ideal, systemOfParameters::Vector)
   R = base_ring(I)
 
   # Check for correct input? No, it'll be checked in main functions.
   gensR = gens(R)
   Istd = standard_basis(I) # could be skippable
 
-  RetPoly = q * derivative(f, y[j])
+  RetPoly = q * derivative(f, systemOfParameters[j])
 
   # Generating a list of Variables which aren't in parametersystem y
   OtherVars = empty(gensR)
   n = ngens(R)
   for k in 1:n
-    gensR[k] in y || push!(OtherVars, gensR[k])
+    gensR[k] in systemOfParameters || push!(OtherVars, gensR[k])
   end
 
   # See formular in remark 4.2
   for k in 1:ncols(A)
     for l in 1:nrows(A)
-      SubPoly = derivative(gens(I)[l], y[j]) * A[l,k] * derivative(f, OtherVars[k])
+      SubPoly = derivative(gens(I)[l], systemOfParameters[j]) * A[l,k] * derivative(f, OtherVars[k])
       RetPoly = RetPoly - SubPoly
     end
   end
@@ -150,13 +150,13 @@ end
 
 ####################################################################################
 #####################   PRIMEFACTORS    ############################################
-# Name:		primefactors
+# Name:		appearing_primefactors
 #
 # INPUT:	ganze Zahl n (Aktuell für Int64 und fmpz. TODO: fmpz_poly)
 # OUTPUT:	Vector der Primfaktoren von n
 
-# returns a 3-element vector containing (1) a vector of primefactors, (2) a vector of their exponents, (3) sign(N) 
-function primefactors(N)
+# returns a 3-element vector containing (1) a vector of appearing primefactors, (2) a vector of their exponents, (3) sign(N) 
+function appearing_primefactors(N)
   factors = factor(N)
   u = unit(factors)
   F = sort(collect(factors))
@@ -164,11 +164,11 @@ function primefactors(N)
 end
 
 # to get a vector of all prime factors of the coefficients of all generators of an ideal
-function primefactors(I::Ideal)
+function appearing_primefactors(I::Ideal)
   returnList = empty([zero(base_ring(base_ring(I)))])
   for g in gens(I)
     for c in coefficients(g)
-      returnList = union(returnList, primefactors(c)[1])
+      returnList = union(returnList, appearing_primefactors(c)[1])
       #println("# "returnList)
     end
   end
@@ -294,7 +294,7 @@ function interesting_primes(IX::Ideal)
     Itemp = Itemp + ideal([derivative(g,i) for i=1:n for g in f])
     Iint = integer_generator(Itemp)
   end
-  resultList = primefactors(leading_coefficient(gens(Iint)[1]))[1]
+  resultList = appearing_primefactors(leading_coefficient(gens(Iint)[1]))[1]
   return resultList
 end
 
@@ -306,50 +306,44 @@ function interesting_primes(IZ::Ideal, IX::Ideal)
   is_zero(IZ) && return interesting_primes(IX)
 
   R = base_ring(IZ)
-  Itemp = IX				# Muss für IZ != <O> geändert werden
+  # Itemp = IX				# Muss für IZ != <O> geändert werden
+  Itemp = ideal(R, [f for f in gens(IX) if !(f in IZ)])
   n = ngens(R)
-  # resultList = empty(zero(base_ring(R)))
 
   Iint = integer_generator(IZ)
   if !is_zero(Iint)
-    resultList = primefactors(leading_coefficient(gens(Iint)[1]))[1]
+    resultList = appearing_primefactors(leading_coefficient(gens(Iint)[1]))[1]
     return (resultList)
   end 
-
-  Iint = ideal(R, [zero(R)]) # redundant bc of if statment above?
-
-  # no need to union resultList with primefactors here, resultList was empty
-  resultList = primefactors(IZ)
-  # resultList = primefactors(IX)
+  resultList = appearing_primefactors(IZ)
   coDimZ = codimension(IZ)
   JZ = transpose(jacobi_matrix(gens(IZ)))
-  # may have to do this a diffrent way; not intersecting with D(p_1*...*p_alpha) yet
   L1 = generate_L1(coDimZ, JZ, IX, IZ, prod(resultList)) # at this moment resultList only contains the primefactors of the coeffs of gens(IZ)
-  println("# ", "L1 = ", L1)
+  # inefficient at the moment
 
-  gensItemp = empty(gens(IX))
-  for poly in gens(IX)
-    poly in IZ || push!(gensItemp, poly) # what if IZ = <x1> and IX = <x1, 15*x1> ?
-  end # gensItemp = [Generators of IX but not of IZ]
-  Itemp = ideal(R, gensItemp)
+  #gensItemp = empty(gens(IX))
+  #for poly in gens(IX)
+  #  poly in IZ || push!(gensItemp, poly) # what if IZ = <x1> and IX = <x1, 15*x1> ?
+  #end # gensItemp = [Generators of IX but not of IZ] 
+  #Itemp = ideal(R, gensItemp)
 
   for member in 1:length(L1)
-    println("# ", "member ", member)
-    y = system_of_parameters(R, member, L1[member][2], coDimZ)
-    println("# ", "system_of_parameters ready")
-    Iint = ideal(R, [zero(R)])
+    # println("# ", "member ", member)
+    systemOfParameters = system_of_parameters(R, L1[member][2])
+    # println("# ", "system_of_parameters ready")
+    # Iint = ideal(R, [zero(R)])
     M = L1[member][1]
     detM = det(M)
     A = adjugate(M) # transposed cofactor matrix of M
-    while Iint == ideal(R, [zero(R)])
+    while is_zero(Iint)
       F = gens(Itemp)
-      Itemp = Itemp + ideal(R, [pseudo_diff(f, j, A, detM, IZ, y) for f in F for j in 1:length(y)])
+      Itemp = Itemp + ideal(R, [pseudo_diff(f, j, A, detM, IZ, systemOfParameters) for f in F for j in 1:length(systemOfParameters)])
       # KLÄREN: Hier muss doch Itemp verändert werden oder nicht?
       Iint = integer_generator(Itemp + IZ)
-      println("# Itemp = ", Itemp)
+      # println("# Itemp = ", Itemp)
     end
-    println("# ", "while finished")
-    one(R) in Iint || (resultList = union(resultList, primefactors(leading_coefficient(gens(Iint)[1]))[1]))
+    # println("# ", "while finished")
+    one(R) in Iint || (resultList = union(resultList, appearing_primefactors(leading_coefficient(gens(Iint)[1]))[1]))
   end
   return (resultList)
 end
@@ -543,9 +537,9 @@ function ideal_diff(IZ::Ideal, IX::Ideal)
       M = L1[member][1]
       detM = det(M)
       A = adjugate(M)
-      y = system_of_parameters(R, member, L1[member][2], coDimZ)
+      systemOfParameters = system_of_parameters(R, L1[member][2])
       F = [f for f in gens(IX) if !(f in IZ)]
-      IX_deriv_temp = [pseudo_diff(f, j, A, detM, IZ, y) for j in 1:length(y) for f in F if !(is_zero(pseudo_diff(f, j, A, detM, IZ, y)))]
+      IX_deriv_temp = [pseudo_diff(f, j, A, detM, IZ, systemOfParameters) for j in 1:length(systemOfParameters) for f in F if !(is_zero(pseudo_diff(f, j, A, detM, IZ, systemOfParameters)))]
       IX_deriv = vcat(IX_deriv, IX_deriv_temp)
     end
     return IX_deriv 
@@ -558,9 +552,9 @@ function ideal_diff(IZ::Ideal, IX::Ideal)
       M = L1[member][1]
       detM = det(M)
       A = adjugate(M) # transposed cofactor matrix of M
-      y = system_of_parameters(R, member, L1[member][2], coDimZ)
+      systemOfParameters = system_of_parameters(R, L1[member][2])
       F = [f for f in gens(IX) if !(f in IZ)]
-      IX_deriv_temp = [pseudo_diff(f, j, A, detM, IZ, y) for j in 1:length(y) for f in F if !(is_zero(pseudo_diff(f, j, A, detM, IZ, y)))]
+      IX_deriv_temp = [pseudo_diff(f, j, A, detM, IZ, systemOfParameters) for j in 1:length(systemOfParameters) for f in F if !(is_zero(pseudo_diff(f, j, A, detM, IZ, systemOfParameters)))]
       IX_deriv = vcat(IX_deriv, IX_deriv_temp)
       # don't know how to "saturate a vector". Good bye time efficiency. Also: Bye bye units.
       for i in 1:length(IX_deriv) # saturating w.r.t. detM
@@ -588,7 +582,8 @@ end
 
 function ideal_diff_all(IZ::Ideal, IX::Ideal)
   is_zero(IZ) && return ideal_diff_all(IX)
-
+  R = base_ring(IX)
+  baseRing = base_ring(R)
   if baseRing == ZZ
     F = [f for f in gens(IX) if !(f in IZ)]  # all gens of IX not in IZ
     coDimZ = codimension(IZ)
@@ -599,8 +594,8 @@ function ideal_diff_all(IZ::Ideal, IX::Ideal)
       M = L1[member][1]
       detM = det(M)
       A = adjugate(M)
-      y = system_of_parameters(R, member, L1[member][2], coDimZ)
-      IX_deriv_temp = [[pseudo_diff(F[k], j, A, detM, IZ, y), k] for j in 1:length(y) for k in 1:length(F)]
+      systemOfParameters = system_of_parameters(R, L1[member][2])
+      IX_deriv_temp = [[pseudo_diff(F[k], j, A, detM, IZ, systemOfParameters), k] for j in 1:length(systemOfParameters) for k in 1:length(F)]
       IX_deriv = vcat(IX_deriv, IX_deriv_temp)
     end
     return IX_deriv
@@ -616,13 +611,13 @@ function ideal_diff_all(IZ::Ideal, IX::Ideal)
       M = L1[member][1]
       detM = det(M)
       A = adjugate(M) # transposed cofactor matrix of M
-      y = system_of_parameters(R, member, L1[member][2], coDimZ)
+      systemOfParameters = system_of_parameters(R, L1[member][2])
       F = [f for f in gens(IX) if !(f in IZ)]
-      IX_deriv_temp = [[pseudo_diff(F[k], j, A, detM, IZ, y), k] for j in 1:length(y) for k in 1:length(F)]
+      IX_deriv_temp = [[pseudo_diff(F[k], j, A, detM, IZ, systemOfParameters), k] for j in 1:length(systemOfParameters) for k in 1:length(F)]
       IX_deriv = vcat(IX_deriv, IX_deriv_temp)
       # don't know how to "saturate a vector". Good bye time efficiency. Also: Bye bye units.
       for i in 1:length(IX_deriv) # saturating w.r.t. detM
-        IX_deriv[i] = gens(saturation(ideal(R, IX_deriv[i][1]), ideal(R, [detM])))[1]
+        IX_deriv[i][1] = gens(saturation(ideal(R, IX_deriv[i][1]), ideal(R, [detM])))[1]
       end
     end
     return IX_deriv
@@ -711,9 +706,9 @@ function loc_greq_2(IZ::Ideal, IX::Ideal)
       M = L1[member][1]
       detM = det(M)
       A = adjugate(M) # transposed cofactor matrix of M
-      y = system_of_parameters(R, member, L1[member][2], coDimZ)
-      s = length(y)
-      Itemp = Itemp + ideal(R, [pseudo_diff(f, j, A, detM, IZ, y) for f in gensItemp for j in 1:s])
+      systemOfParameters = system_of_parameters(R, L1[member][2])
+      s = length(systemOfParameters)
+      Itemp = Itemp + ideal(R, [pseudo_diff(f, j, A, detM, IZ, systemOfParameters) for f in gensItemp for j in 1:s])
       Itemp = saturation(Itemp, ideal(R, detM))
     end
   else
@@ -760,7 +755,7 @@ function loc_greq_b(IZ::Ideal, IX::Ideal, b::Int64)
   temp = IX
   retList = [temp]
 
-  char = get_char(R)  # 
+  char = get_char(R)
 
   # einfach immer base_ring benutzen?
 
@@ -807,9 +802,6 @@ function is_regular(IX::Ideal)
   D_IX = loc_greq_2(IX)
 
   if one(R) in D_IX
-    # finde f1, ..., fs sodass die Vereinigung der Schnitte von X mit D(fi) = X sind
-    # F = [f for f in D_IX if !(f in gens(IX))]
-    println("one in D_IX")
     gensIX = gens(IX)
     IX_deriv_all = empty([gensIX[1], 1])
     if base_ring(R) == ZZ 
@@ -845,48 +837,40 @@ function is_regular(IZ::Ideal, IX::Ideal)
   R = base_ring(IZ)
   base_ring(IX) === R || error("IZ and IX need to be defined in the same ring")
   issubset(IZ, IX) || error("IZ needs to be a subset of IX.")
-
-  # base case of the recursion
-  IZ == IX && return true
+  IX == radical(IX) || (IX = radical(IX))
 
   is_zero(IZ) && return is_regular(IX)
-
+  # base case of the recursion
+  IZ == IX && return true
   D_IX = loc_greq_2(IZ, IX)
-  # Alternative to following if clause:
-  # one(R) in D_IX || return false
-
-  if one(R) in D_IX
-    println("one in D_IX")
-    # gens of IX that aren't in IZ
-    gensIX = [f for f in gens(IX) if !(f in gens(IZ))]
-    IX_deriv_all = empty([gensIX[1], 1])
-    if base_ring == ZZ
-      PrimeList = interesting_primes(IZ, IX)
-      if length(PrimeList) == 0
-        IX_deriv_all = ideal_diff_all(IZ, IX)
-      end
-      for p in PrimeList
-        JX = replace_coeffs(IX, p)
-        JZ = replace_coeffs(IZ, p)
-        JX_deriv_all = ideal_diff_all(JZ, JX)
-        Vars = vcat(gens(R), R(p))
-        IX_deriv_all = vcat(IX_deriv_all, [[evaluate(JX_deriv_all[i][1], Vars), JX_deriv_all[i][2]] for i in 1:length(JX_deriv_all)])
-      end
-    else
+  one(R) in D_IX || return false
+  # gens of IX that aren't in IZ
+  gensIX = [f for f in gens(IX) if !(f in gens(IZ))]
+  IX_deriv_all = empty([gensIX[1], 1])
+  if base_ring == ZZ
+    PrimeList = interesting_primes(IZ, IX)
+    if length(PrimeList) == 0
       IX_deriv_all = ideal_diff_all(IZ, IX)
-    end
-    # TODO: recursive stuff...
-    # finding a linear combination of derivatives that generates 1
-    linearCombi = coordinates([IX_deriv_all[i][1] for i in 1:length(IX_deriv_all)], one(R))
-    # adding generators of IX to IZ if their derivatives are part of linear combination from above
-    for k in 1:rank(parent(linearCombi)) # rank(parent(linearCombi)) conveniently is the same number as length(IX_deriv_all)
-      if linearCombi[k] != zero(R) # true for at least one k, otherwise D_IX wouldn't have been <1> in the first place
-        IZ_new = IZ + ideal(R, [gensIX[IX_deriv_all[k][2]]])
-        return is_regular(IZ_new, IX)
+    else
+      for p in PrimeList
+      JX = replace_coeffs(IX, p)
+      JZ = replace_coeffs(IZ, p)
+      JX_deriv_all = ideal_diff_all(JZ, JX)
+      Vars = vcat(gens(R), R(p))
+      IX_deriv_all = vcat(IX_deriv_all, [[evaluate(JX_deriv_all[i][1], Vars), JX_deriv_all[i][2]] for i in 1:length(JX_deriv_all)])
       end
     end
   else
-    return false
+    IX_deriv_all = ideal_diff_all(IZ, IX)
+  end
+  # finding a linear combination of derivatives that generates 1
+  linearCombi = coordinates([IX_deriv_all[i][1] for i in 1:length(IX_deriv_all)], one(R))
+  # adding generators of IX to IZ if their derivatives are part of linear combination from above
+  for k in 1:rank(parent(linearCombi)) # rank(parent(linearCombi)) conveniently is the same number as length(IX_deriv_all)
+    if linearCombi[k] != zero(R) # true for at least one k, otherwise D_IX wouldn't have been <1> in the first place
+      IZ_new = IZ + ideal(R, [gensIX[IX_deriv_all[k][2]]])
+      return is_regular(IZ_new, IX)
+    end
   end
 end
 
@@ -939,15 +923,15 @@ function MaxOrd(IZ,IX)
       M = L1[member][1]
       detM = det(M)
       A = adjugate(M) # transposed cofactor matrix of M
-      y = system_of_parameters(R, member, L1[member][2], coDimZ)
-      s = length(y)
+      systemOfParameters = system_of_parameters(R, L1[member][2])
+      s = length(systemOfParameters)
 
       while !(one(R) in Itemp + IZ)
         println("# Itemp + IZ != <1>")
         Iold = Itemp
         # getting generators of Itemp (F = [f1, ..., fr])
         F = gens(Itemp)
-        Itemp = Itemp + ideal(R, [pseudo_diff(f, j, A, detM, IZ, y) for f in F for j in 1:s])
+        Itemp = Itemp + ideal(R, [pseudo_diff(f, j, A, detM, IZ, systemOfParameters) for f in F for j in 1:s])
         Itemp = saturation(Itemp, ideal(R, detM))
         thisord = thisord + 1
       end
@@ -1022,8 +1006,8 @@ function MaxOrdArith(IZ::Ideal, IX::Ideal)
       for member in 1:length(L1)
         M = L1[member][1]
         # y = system_of_parameters
-        y = system_of_parameters(base_ring(JX), member, L1[member][2], coDimZ)
-        DiffList = hasse_deriv(JZ, JX, y, M)
+        systemOfParameters = system_of_parameters(base_ring(JX), L1[member][2])
+        DiffList = hasse_deriv(JZ, JX, systemOfParameters, M)
         println("hasse_deriv finished")
         m = length(DiffList)
         Vars = push!(gens(R), R(p))
@@ -1119,9 +1103,9 @@ function delta_check(IZ::Ideal, IX::Ideal, q)
     Q = Q + ideal(R, [q_new])
     A = adjugate(M)
     # Test Sing(I_{X,Z}, 2) subset V(q_new) union V(q)
-    y = system_of_parameters(R, member, [L1[member][2]], codim(IZ))
-    s = length(y)
-    C_M = IX + ideal(R, [pseudo_diff_helper(f, j, A, q_new, IZ, y) for f in F for j in 1:s])
+    systemOfParameters = system_of_parameters(R, L1[member][2])
+    s = length(systemOfParameters)
+    C_M = IX + ideal(R, [pseudo_diff_helper(f, j, A, q_new, IZ, systemOfParameters) for f in F for j in 1:s])
     # if q_new * q is not in C_M return false
     if !radical_membership(q_new * q, C_M)
       return false
@@ -1184,13 +1168,13 @@ function embedded_jacobian(IZ::Ideal, IX::Ideal, q)
     Q = Q + ideal(R, [q_new])
     A = adjugate(M)
     # Jacobian matrix of IX w.r.t. local system of parameters for IZ
-    y = system_of_parameters(R, member, [L[member][2]], codim(IZ))
+    systemOfParameters = system_of_parameters(R, L[member][2])
     ### TODO: Was macht system_of_parameters bei coDimZ > length ?
-    s = length(y)
+    s = length(systemOfParameters)
     # get entries for Jacobian matrix
     diffs = empty(gens(IZ))
     for f in F 
-      diffs = vcat(diffs, [pseudo_diff_helper(f, j, A, q_new, IZ, y) for j in 1:s])
+      diffs = vcat(diffs, [pseudo_diff_helper(f, j, A, q_new, IZ, systemOfParameters) for j in 1:s])
     end
     # construct (s-r) x (n-r) Jacobian matrix
     n = ngens(R)

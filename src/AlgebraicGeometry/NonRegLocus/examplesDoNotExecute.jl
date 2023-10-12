@@ -12,13 +12,13 @@ R, x = polynomial_ring(ZZ, 5, "x")
 member = 1
 colIndices = [[2,3,4,5]]
 coDimZ = 1
-system_of_parameters(R,member,colIndices,coDimZ) # working
+system_of_parameters(R, member, colIndices, coDimZ) # working
 
 R, x = polynomial_ring(QQ, 5, "x")
 member = 1
 colIndices = [[3,4,5]]
 coDimZ = 2
-system_of_parameters(R,member,colIndices,coDimZ)
+system_of_parameters(R, member, colIndices, coDimZ)
 
 # EXAMPLE pseudo_diff
 R, x = polynomial_ring(ZZ, 8, "x")
@@ -67,31 +67,31 @@ coDimZ = codimension(IZ)
 generate_L1(coDimZ, JZ, IX, IZ)
 
 # EXAMPLE integer_generator
-R, (x, y, z) = polynomial_ring(ZZ, ["x","y","z"], ordering=:deglex)
+R, (x, y, z) = polynomial_ring(ZZ, ["x", "y", "z"])
 I = ideal(R, [3x^2, 7y, z, 5])
 integer_generator(I)
 J = ideal(R, [3x^2, 7y, z])
 integer_generator(J)
 
 # EXAMPLE interesting_primes
-R, (x,y,z) = polynomial_ring(ZZ, ["x","y","z"])
-IX = ideal(R, [3x - y + 7z])
+R, (x, y, z) = polynomial_ring(ZZ, ["x", "y", "z"])
 IZ = ideal(R, [x - 4y + 6z])
+IX = ideal(R, [3x - y + 7z])
 interesting_primes(IZ, IX)  # error (subset)
 
-R, (x,y,z) = polynomial_ring(ZZ, ["x","y","z"])
+R, (x, y, z) = polynomial_ring(ZZ, ["x", "y", "z"])
 IZ = ideal(R, [z])
 IX = IZ + ideal(R, [11^2 + x*y])
 interesting_primes(IZ, IX)  # 11 ?
 
-R, (x,y,z) = polynomial_ring(ZZ, ["x","y","z"])
-IX = ideal(R, [11*x^4])
+R, (x, y, z) = polynomial_ring(ZZ, ["x", "y", "z"])
 IZ = ideal(R, [zero(R)])
+IX = ideal(R, [11*x^4])
 interesting_primes(IZ, IX)  # 2, 3, 11
 
-R, (x,y,z) = polynomial_ring(ZZ, ["x","y","z"])
-IX = ideal(R, [x^2-5^9*y^3])
+R, (x, y, z) = polynomial_ring(ZZ, ["x", "y", "z"])
 IZ = ideal(R, [zero(R)])
+IX = ideal(R, [x^2 - 5^9*y^3])
 interesting_primes(IZ, IX)  # 2
 
 R, x = polynomial_ring(ZZ, 5, "x")
@@ -111,13 +111,11 @@ interesting_primes(IZ, IX)
 
 R, x = polynomial_ring(ZZ, 5, "x")
 IZ = ideal(R, [3*x[3]])
-IX = IZ + ideal(R, [3])
-IX = IZ + ideal(R, [7*x[2]^5, 26*x[5]^5]) # working # 3, 2, 13
+IX = IZ + ideal(R, [7*x[2]^5, 26*x[5]^5]) # working # 3, 2, 5
 interesting_primes(IZ, IX)
 
 R, x = polynomial_ring(ZZ, 5, "x")
 IZ = ideal(R, [12*x[4]])
-IX = IZ + ideal(R, [3])
 IX = IZ + ideal(R, [7*x[2]^5, 26*x[5]^3]) # working # 2, 3, 13
 interesting_primes(IZ, IX)
 
@@ -132,7 +130,7 @@ g = x - 4y + 6z
 f = 3x - y + 7z
 IZ = ideal(R, [g])
 IX = IZ + ideal(R, [f])
-interesting_primes(IZ, IX)  # 2, 3, 7, 11 (returs only 2 and 3 at the moment)
+interesting_primes(IZ, IX)  # 2, 3, 11 (returs only 2 and 3 at the moment)
 
 # Example 4.9
 R, (x, y, z) = polynomial_ring(ZZ, ["x", "y", "z"])
