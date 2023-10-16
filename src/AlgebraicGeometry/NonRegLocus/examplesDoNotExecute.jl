@@ -186,7 +186,7 @@ R, x = polynomial_ring(ZZ, 8, "x")
 IZ = ideal(R, [x[1]*x[2] - 1])
 y = x[2:8]
 M = matrix(R, 1, 1, [x[2]])
-IX = IZ # error (IZ and IX cannot be equal.)
+IX = IZ # working # error (IZ and IX cannot be equal.)
 IX = IZ + ideal(R, [x[1]]) # working
 IX = IZ + ideal(R, [x[3]]) # working
 IX = IZ + ideal(R, [x[2]^2]) # working
@@ -223,14 +223,14 @@ hasse_deriv(IZ, IX, y, M)
 # EXAMPLE loc_greq_2
 R, (x, y) = polynomial_ring(QQ, ["x", "y"])
 IZ = ideal(R, [zero(R)])
-IX = ideal(R, [-x^3+y^2])
+IX = ideal(R, [-x^3 + y^2])
 loc_greq_2(IZ, IX)  # ideal(y, x^2)
 IX = ideal(R, [-x^6 + 3*x^5 - 3*x^4 + x^3 - 3*x^2*y^2 + 3*x*y^2 + y^4 - y^2])
 loc_greq_2(IZ, IX)  
 
 R, (x, y) = polynomial_ring(ZZ, ["x", "y"])
 IZ = ideal(R, [zero(R)])
-IX = ideal(R, [-x^3+y^2])
+IX = ideal(R, [-x^3 + y^2])
 loc_greq_2(IZ, IX)  # ideal(2*y, y^2, 3*x^2, x^2*y, x^3)
 
 R, (x, y, z) = polynomial_ring(QQ, ["x", "y", "z"])
@@ -240,7 +240,7 @@ loc_greq_2(IZ, IX)  # ideal(z, x*y - 1)
 
 R, (x, y, z) = polynomial_ring(ZZ, ["x", "y", "z"])
 IZ = ideal(R, [x])
-IX = IZ + ideal(R, [-x^3+y^2])
+IX = IZ + ideal(R, [-x^3 + y^2])
 loc_greq_2(IZ, IX)
 
 R, (x, y, z) = polynomial_ring(QQ, ["x", "y", "z"])
@@ -248,26 +248,26 @@ P = ideal(R, [x])
 U = complement_of_prime_ideal(P)
 Rloc, iota = localization(R, U)
 IZ = ideal(Rloc, [zero(Rloc)])
-IX = ideal(Rloc, [-y^3+x^2])
+IX = ideal(Rloc, [-y^3 + x^2])
 loc_greq_2(IZ,IX)  # working
 
 # T, t = polynomial_ring(QQ, "t")
 # K, a =  number_field(2*t^2-1, "a")
 R, (x, y) = polynomial_ring(QQ, ["x", "y"])
-I = ideal(R, [x-1])  # I = ideal(R, [x-1, x-a])
+I = ideal(R, [x - 1])  # I = ideal(R, [x-1, x-a])
 RQ, _ = quo(R, I)
 IZ = ideal(RQ, [zero(RQ)])
-IX = ideal(RQ, [-y^3+x^2])
+IX = ideal(RQ, [-y^3 + x^2])
 loc_greq_2(IZ,IX)  # working
 
 R, (x, y) = polynomial_ring(QQ, ["x", "y"])
-I = ideal(R, [x^3-1])
-RQ, phi = quo(R, I)
+I = ideal(R, [x^3 - 1])
+RQ, phi = quo(R, I) 
 P = ideal(R, [y])
 U = complement_of_prime_ideal(P)
 RQL, iota = localization(RQ, U) 
 IZ = ideal(RQL, [zero(RQL)])
-IX = ideal(RQL, [-y^3+x^2])  # RESOVLED: IZ and IX are equal (need to understand why ^^ ) # Need to find an example with IZ != IX 
+IX = ideal(RQL, [-y^3 + x^2])  # RESOVLED: IZ and IX are equal (need to understand why ^^ ) # Need to find an example with IZ != IX 
 loc_greq_2(IZ,IX)  # working
 
 # EXAMPLE loc_greq_b
@@ -329,26 +329,26 @@ IX = IZ + ideal(R, [z^2])
 MaxOrd(IZ, IX)
 
 # EXAMPLE MaxOrdArith
-R, (x,y) = polynomial_ring(ZZ, ["x","y"], ordering=:deglex)
+R, (x, y) = polynomial_ring(ZZ, ["x", "y"], ordering=:deglex)
 IZ = ideal(R, [zero(R)])
-IX = ideal(R, [x^2-6*y^3])
+IX = ideal(R, [x^2 - 6*y^3])
 MaxOrdArith(IZ, IX)
 
-R, (v,w,x,y,z) = polynomial_ring(ZZ, ["v","w","x","y","z"], ordering=:deglex)
+R, (v, w, x, y, z) = polynomial_ring(ZZ, ["v", "w", "x", "y", "z"], ordering=:deglex)
 IZ = ideal(R, [zero(R)])
 IX = ideal(R, [x])
 IX = ideal(R, [3y])
 IX = ideal(R, [7x, 12y^3])
-IX = ideal(R, [z^7+x^3]) 
+IX = ideal(R, [z^7 + x^3]) 
 IX = ideal(R, [34x])
-IX = ideal(R, [9-w^7])
-IX = ideal(R, [9-v^4])
-IX = ideal(R, [7-v^4])
-IX = ideal(R, [12x^4+7z^3, y^2+19])
+IX = ideal(R, [9 - w^7])
+IX = ideal(R, [9 - v^4])
+IX = ideal(R, [7 - v^4])
+IX = ideal(R, [12x^4 + 7z^3, y^2 + 19])
 MaxOrdArith(IZ, IX)
 
-R, (v,w,x,y,z) = polynomial_ring(ZZ, ["v","w","x","y","z"], ordering=:deglex)
-IZ = ideal(R, [1-6x^2*y^3])
+R, (v, w, x, y, z) = polynomial_ring(ZZ, ["v", "w", "x", "y", "z"], ordering=:deglex)
+IZ = ideal(R, [1 - 6x^2*y^3])
 IX = IZ + ideal(R, [v^2 + 5*w^3])
 MaxOrdArith(IZ, IX)
 
@@ -434,7 +434,7 @@ IX = ideal(R, [12 - u*v^2])
 is_regular(IZ, IX)
 
 # 4.3  # 4.8  # 4.17
-R,(x, y, z) = polynomial_ring(ZZ, ["x", "y", "z"])
+R, (x, y, z) = polynomial_ring(ZZ, ["x", "y", "z"])
 IZ = ideal(R, [x - 4y + 6z])
 IX = IZ + ideal(R, [3x - y + 7z])
 is_regular(IZ, IX)
@@ -474,3 +474,9 @@ is_regular(IZ, IX)
 
 
 
+for p in [2, 3, 5, 7, 11, 13, 17, 19]
+  print("p = ", p)
+  IZ = ideal(R, [p - x^p])
+  IX = IZ + ideal(R, [z^2 + x^p*y])
+  println("   ", is_regular(IZ, IX))
+end

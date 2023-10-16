@@ -3,7 +3,7 @@ export system_of_parameters
 export adjugate
 export pseudo_diff
 export pseudo_diff_helper
-export appearing_primefactors # appearing_primefactors
+export appearing_primefactors
 export generate_L1
 export integer_generator
 export interesting_primes
@@ -15,6 +15,7 @@ export ideal_diff_all
 export loc_greq_2
 export loc_greq_b
 export is_regular
+export non_regular_locus
 
 export MaxOrd
 export MaxOrdArith
@@ -320,12 +321,6 @@ function interesting_primes(IZ::Ideal, IX::Ideal)
   JZ = transpose(jacobi_matrix(gens(IZ)))
   L1 = generate_L1(coDimZ, JZ, IX, IZ, prod(resultList)) # at this moment resultList only contains the primefactors of the coeffs of gens(IZ)
   # inefficient at the moment
-
-  #gensItemp = empty(gens(IX))
-  #for poly in gens(IX)
-  #  poly in IZ || push!(gensItemp, poly) # what if IZ = <x1> and IX = <x1, 15*x1> ?
-  #end # gensItemp = [Generators of IX but not of IZ] 
-  #Itemp = ideal(R, gensItemp)
 
   for member in 1:length(L1)
     # println("# ", "member ", member)
@@ -799,32 +794,32 @@ end
 
 function is_regular(IX::Ideal)
   R = base_ring(IX)
-  D_IX = loc_greq_2(IX)
+  DeltaIX = loc_greq_2(IX)
 
-  if one(R) in D_IX
+  if one(R) in DeltaIX
     gensIX = gens(IX)
-    IX_deriv_all = empty([gensIX[1], 1])
+    IXderivAll = empty([gensIX[1], 1])
     if base_ring(R) == ZZ 
       PrimeList = interesting_primes(IX)
       if length(PrimeList) == 0
-        IX_deriv_all = ideal_diff_all(IX)
+        IXderivAll = ideal_diff_all(IX)
       end
       for p in PrimeList
         JX = replace_coeffs(IX, p)
-        JX_deriv_all = ideal_diff_all(JX)
+        JXderivAll = ideal_diff_all(JX)
         Vars = vcat(gens(R), R(p))
-        # IX_deriv_all = vcat(IX_deriv_all, [evaluate(f, Vars) for f in JX_deriv_all if !(evaluate(f, Vars) in IX_deriv_all)])
-        IX_deriv_all = vcat(IX_deriv_all, [[evaluate(JX_deriv_all[i][1], Vars), JX_deriv_all[i][2]] for i in 1:length(JX_deriv_all)])
+        # IXderivAll = vcat(IXderivAll, [evaluate(f, Vars) for f in JXderivAll if !(evaluate(f, Vars) in IXderivAll)])
+        IXderivAll = vcat(IXderivAll, [[evaluate(JXderivAll[i][1], Vars), JXderivAll[i][2]] for i in 1:length(JXderivAll)])
       end
     else
-      IX_deriv_all = ideal_diff_all(IX)
+      IXderivAll = ideal_diff_all(IX)
     end
     # finding a linear combination of derivatives that generates 1
-    linearCombi = coordinates([IX_deriv_all[i][1] for i in 1:length(IX_deriv_all)], one(R))
+    linearCombi = coordinates([IXderivAll[i][1] for i in 1:length(IXderivAll)], one(R))
     # adding generators of IX to IZ if their derivatives are part of linear combination from above
-    for k in 1:rank(parent(linearCombi)) # rank(parent(linearCombi)) conveniently is the same number as length(IX_deriv_all)
-      if linearCombi[k] != zero(R) # true for at least one k, otherwise D_IX wouldn't have been <1> in the first place
-        IZ = ideal(R, [gensIX[IX_deriv_all[k][2]]])
+    for k in 1:rank(parent(linearCombi)) # rank(parent(linearCombi)) conveniently is the same number as length(IXderivAll)
+      if linearCombi[k] != zero(R) # true for at least one k, otherwise DeltaIX wouldn't have been <1> in the first place
+        IZ = ideal(R, [gensIX[IXderivAll[k][2]]])
         return is_regular(IZ, IX)
       end
     end
@@ -842,36 +837,47 @@ function is_regular(IZ::Ideal, IX::Ideal)
   is_zero(IZ) && return is_regular(IX)
   # base case of the recursion
   IZ == IX && return true
-  D_IX = loc_greq_2(IZ, IX)
-  one(R) in D_IX || return false
+  DeltaIX = loc_greq_2(IZ, IX)
+  one(R) in DeltaIX || return false
   # gens of IX that aren't in IZ
   gensIX = [f for f in gens(IX) if !(f in gens(IZ))]
-  IX_deriv_all = empty([gensIX[1], 1])
+  IXderivAll = empty([gensIX[1], 1])
   if base_ring == ZZ
     PrimeList = interesting_primes(IZ, IX)
     if length(PrimeList) == 0
-      IX_deriv_all = ideal_diff_all(IZ, IX)
+      IXderivAll = ideal_diff_all(IZ, IX)
     else
       for p in PrimeList
-      JX = replace_coeffs(IX, p)
-      JZ = replace_coeffs(IZ, p)
-      JX_deriv_all = ideal_diff_all(JZ, JX)
-      Vars = vcat(gens(R), R(p))
-      IX_deriv_all = vcat(IX_deriv_all, [[evaluate(JX_deriv_all[i][1], Vars), JX_deriv_all[i][2]] for i in 1:length(JX_deriv_all)])
+        JX = replace_coeffs(IX, p)
+        JZ = replace_coeffs(IZ, p)
+        JXderivAll = ideal_diff_all(JZ, JX)
+        Vars = vcat(gens(R), R(p))
+        IXderivAll = vcat(IXderivAll, [[evaluate(JXderivAll[i][1], Vars), JXderivAll[i][2]] for i in 1:length(JXderivAll)])
       end
     end
   else
-    IX_deriv_all = ideal_diff_all(IZ, IX)
+    IXderivAll = ideal_diff_all(IZ, IX)
   end
   # finding a linear combination of derivatives that generates 1
-  linearCombi = coordinates([IX_deriv_all[i][1] for i in 1:length(IX_deriv_all)], one(R))
+  linearCombi = coordinates([IXderivAll[i][1] for i in 1:length(IXderivAll)], one(R))
   # adding generators of IX to IZ if their derivatives are part of linear combination from above
-  for k in 1:rank(parent(linearCombi)) # rank(parent(linearCombi)) conveniently is the same number as length(IX_deriv_all)
-    if linearCombi[k] != zero(R) # true for at least one k, otherwise D_IX wouldn't have been <1> in the first place
-      IZ_new = IZ + ideal(R, [gensIX[IX_deriv_all[k][2]]])
+  for k in 1:rank(parent(linearCombi)) # rank(parent(linearCombi)) conveniently is the same number as length(IXderivAll)
+    if linearCombi[k] != zero(R) # true for at least one k, otherwise DeltaIX wouldn't have been <1> in the first place
+      IZ_new = IZ + ideal(R, [gensIX[IXderivAll[k][2]]])
       return is_regular(IZ_new, IX)
     end
   end
+end
+
+####################################################################################
+#####################   NON-REGULAR LOCUS    ###################################### 
+# Name:		non_regular_locus
+#
+# INPUT:	Ideals IZ and IX 
+# OUTPUT:	an Ideal I, where V(I) is the non-regular locus of X
+
+function non_regular_locus(IZ::Ideal, IX::Ideal)
+
 end
 
 ####################################################################################
