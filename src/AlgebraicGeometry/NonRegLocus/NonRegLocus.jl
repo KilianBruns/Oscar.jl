@@ -126,10 +126,7 @@ end
 function pseudo_diff_helper(f, j, A, q, I::Ideal, systemOfParameters::Vector)
   R = base_ring(I)
 
-  # Check for correct input? No, it'll be checked in main functions.
   gensR = gens(R)
-  Istd = standard_basis(I) # could be skippable
-
   RetPoly = q * derivative(f, systemOfParameters[j])
 
   # Generating a list of Variables which aren't in parametersystem y
@@ -146,6 +143,8 @@ function pseudo_diff_helper(f, j, A, q, I::Ideal, systemOfParameters::Vector)
       RetPoly = RetPoly - SubPoly
     end
   end
+  Istd = standard_basis(I)
+  RetPoly = reduce(RetPoly, gens(Istd))
   return (RetPoly)
 end
 
