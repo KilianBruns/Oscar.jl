@@ -343,7 +343,7 @@ function interesting_primes(IZ::Ideal, IX::Ideal)
 end
 
 ####################################################################################
-#####################   REPLACING COEFFICIENTS   ################################### 
+#####################   REPLACING COEFFICIENTS   ###################################
 # Name:		replace_coeffs
 #
 # INPUT:	Ideal I and interger p
@@ -767,7 +767,7 @@ function loc_greq_b(IZ::Ideal, IX::Ideal, b::Int64)
         # retList = vcat(retList,[temp])
       end
     else
-      DiffList = hasse_deriv(IZ,IX) # no iteration needed, hasse_deriv already returns all derivatives
+      DiffList = hasse_deriv(IZ, IX) # no iteration needed, hasse_deriv already returns all derivatives
       DiffListL = length(DiffList)
       if DiffListL>=b 
         return (DiffList[1:b])
@@ -841,7 +841,7 @@ function is_regular(IZ::Ideal, IX::Ideal)
   # gens of IX that aren't in IZ
   gensIX = [f for f in gens(IX) if !(f in gens(IZ))]
   IXderivAll = empty([gensIX[1], 1])
-  if base_ring == ZZ
+  if base_ring(R) == ZZ
     PrimeList = interesting_primes(IZ, IX)
     if length(PrimeList) == 0
       IXderivAll = ideal_diff_all(IZ, IX)
@@ -875,8 +875,121 @@ end
 # INPUT:	Ideals IZ and IX 
 # OUTPUT:	an Ideal I, where V(I) is the non-regular locus of X
 
-function non_regular_locus(IZ::Ideal, IX::Ideal)
+function non_regular_locus(IX::Ideal)
+  println("### Starte non_regular_locus(IX)")
+  # Prüfe Übergabeparameter
+  R = base_ring(IX)
+  IX == radical(IX) || (IX = radical(IX)) # V(IX) == V(radical(IX))
+  # Do gens(IX) form a standard_basis ? 
+  IX = ideal(R, gens(standard_basis(IX)))
 
+  is_regular(IX) && return ideal(R, [one(R)]) # if X smooth/regular -> nonRegLoc is empty
+
+  DeltaIX = loc_greq_2(IX)
+  # nonRegLocList = empty([IX]) # Sammle alle Orte >= 2 
+  nonRegLocList = [DeltaIX] # Sammle alle Orte >= 2 
+
+  if one(R) in DeltaIX
+    gensIX = gens(IX)
+    IXderivAll = empty([gensIX[1], 1])
+    if base_ring(R) == ZZ 
+      PrimeList = interesting_primes(IX)
+      if length(PrimeList) == 0
+        IXderivAll = ideal_diff_all(IX)
+      end
+      for p in PrimeList
+        JX = replace_coeffs(IX, p)
+        JXderivAll = ideal_diff_all(JX)
+        Vars = vcat(gens(R), R(p))
+        # IXderivAll = vcat(IXderivAll, [evaluate(f, Vars) for f in JXderivAll if !(evaluate(f, Vars) in IXderivAll)])
+        IXderivAll = vcat(IXderivAll, [[evaluate(JXderivAll[i][1], Vars), JXderivAll[i][2]] for i in 1:length(JXderivAll)])
+      end
+    else
+      IXderivAll = ideal_diff_all(IX)
+    end
+    # finding a linear combination of derivatives that generates 1
+    linearCombi = coordinates([IXderivAll[i][1] for i in 1:length(IXderivAll)], one(R))
+    # adding generators of IX to IZ if their derivatives are part of linear combination from above
+    for k in 1:rank(parent(linearCombi)) # rank(parent(linearCombi)) conveniently is the same number as length(IXderivAll)
+      if linearCombi[k] != zero(R)
+        IZ = ideal(R, [gensIX[IXderivAll[k][2]]])
+        nonRegLocList = vcat(nonRegLocList, non_regular_locus(IZ, IX))
+      end
+    end
+  else
+    # Was passiert, wenn DeltaIX nicht 1 ist? 
+    # Wird einfach der Ort der Ordnung 2 genommen und nicht weiter Iteriert?
+    push!(nonRegLocList, DeltaIX)
+  end
+
+  # Alle Ideale aus der Liste nonRegLocList vereinigen
+  # lösche Ideale mit 1 aus der Liste
+  nonRegLocList = [I for I in nonRegLocList if !(one(R) in I)]
+  println("# nonRegLocList = ", nonRegLocList)
+  nonRegLoc = sum(nonRegLocList)
+  println("# nonRegLoc = ", nonRegLoc)
+  println("# The non regular locus of X is:")
+  return radical(nonRegLoc)
+
+  # Prüfe Abbruchbedingung/Base case
+    # IZ == IX -> smooth
+    # Delta(IX) != <1> -> 
+  # Leite standard_basis von IX ab
+  # Finde LinKombi, die 1 erzeugt
+  # Erstelle IZ und Iteriere mit non_regular_locus(IZ, IX)
+
+  # Ich schaue mir doch immer nur den Ort der Ordnung >= 2 an, warum brauche ich Orte der Ordnung >= b oder Hasse Schmidt?
+end
+
+function non_regular_locus(IZ::Ideal, IX::Ideal)
+  println("### Starte non_regular_locus(IZ, IX) mit IZ = ", IZ)
+  # Prüfe Übergabeparameter
+  R = base_ring(IX)
+  base_ring(IX) === R || error("IZ and IX need to be defined in the same ring")
+  issubset(IZ, IX) || error("IZ needs to be a subset of IX.")
+  IX == radical(IX) || (IX = radical(IX)) # V(IX) == V(radical(IX))
+
+  IX == IZ && return ideal(R, [one(R)]) # if X equals Z -> nonRegLoc is empty
+
+  DeltaIX = loc_greq_2(IZ, IX)
+  # nonRegLocList = empty([IX]) # Sammle alle Orte >= 2 
+  nonRegLocList = [IX] # Sammle alle Orte >= 2   
+
+  if one(R) in DeltaIX
+    # gens of IX that aren't in IZ
+    gensIX = [f for f in gens(IX) if !(f in gens(IZ))]  
+    IXderivAll = empty([gensIX[1], 1])
+    if base_ring(R) == ZZ 
+      PrimeList = interesting_primes(IZ, IX)
+      if length(PrimeList) == 0
+        IXderivAll = ideal_diff_all(IZ, IX)
+      end
+      for p in PrimeList
+        JX = replace_coeffs(IX, p)
+        JZ = replace_coeffs(IZ, p)
+        JXderivAll = ideal_diff_all(JZ, JX)
+        Vars = vcat(gens(R), R(p))
+        # IXderivAll = vcat(IXderivAll, [evaluate(f, Vars) for f in JXderivAll if !(evaluate(f, Vars) in IXderivAll)])
+        IXderivAll = vcat(IXderivAll, [[evaluate(JXderivAll[i][1], Vars), JXderivAll[i][2]] for i in 1:length(JXderivAll)])
+      end
+    else
+      IXderivAll = ideal_diff_all(IZ, IX)
+    end
+    # finding a linear combination of derivatives that generates 1
+    linearCombi = coordinates([IXderivAll[i][1] for i in 1:length(IXderivAll)], one(R))
+    # adding generators of IX to IZ if their derivatives are part of linear combination from above
+    for k in 1:rank(parent(linearCombi)) # rank(parent(linearCombi)) conveniently is the same number as length(IXderivAll)
+      if linearCombi[k] != zero(R)
+        IZ = IZ + ideal(R, [gensIX[IXderivAll[k][2]]])
+        nonRegLocList = vcat(nonRegLocList, non_regular_locus(IZ, IX))
+      end
+    end
+  else
+    # Was passiert, wenn DeltaIX nicht 1 ist? 
+    # Wird einfach der Ort der Ordnung 2 genommen und nicht weiter Iteriert?
+    push!(nonRegLocList, DeltaIX)
+  end
+  return nonRegLocList # wird in non_regular_locus(IX) gesammelt
 end
 
 ####################################################################################
