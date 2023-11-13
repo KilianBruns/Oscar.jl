@@ -791,8 +791,9 @@ end
 # Name:		is_regular
 #
 # INPUT:	Ideals IZ and IX 
-# OUTPUT:	true/false whether X is/isn't regular
+# OUTPUT:	true/false whether X = V(IX) is/isn't regular
 
+# this function is redundand
 function is_regular(IX::Ideal)
   R = base_ring(IX)
   DeltaIX = loc_greq_2(IX)
@@ -836,7 +837,7 @@ function is_regular(IZ::Ideal, IX::Ideal)
   issubset(IZ, IX) || error("IZ needs to be a subset of IX.")
   IX == radical(IX) || (IX = radical(IX))
 
-  is_zero(IZ) && return is_regular(IX)
+  # is_zero(IZ) && return is_regular(IX) # is_regular(IX) is redundand
   # base case of the recursion
   IZ == IX && return true
   DeltaIX = loc_greq_2(IZ, IX)
@@ -894,8 +895,9 @@ end
 # Name:		non_regular_locus
 #
 # INPUT:	Ideals IZ and IX 
-# OUTPUT:	an Ideal I, where V(I) is the non-regular locus of X
+# OUTPUT:	an Ideal I, where V(I) is the non-regular locus of X = V(IX)
 
+# this function is redundand
 function non_regular_locus(IX::Ideal)
   println("# Starte non_regular_locus(IX)")
   # Prüfe Übergabeparameter
@@ -1035,6 +1037,8 @@ function non_regular_locus(IZ::Ideal, IX::Ideal)
     # Wird einfach der Ort der Ordnung 2 genommen und nicht weiter Iteriert?
     push!(nonRegLocList, DeltaIX)
   end
+  # getting rid of all ideals in nonRegLocList which are equal to <1>
+  nonRegLocList = [I in nonRegLocList if !(is_one(I))]
   return radical(sum(nonRegLocList))
 end
 
