@@ -606,15 +606,15 @@ function ideal_diff_all(IZ::Ideal, IX::Ideal)
       detM = det(M)
       A = adjugate(M) # transposed cofactor matrix of M
       systemOfParameters = system_of_parameters(R, L1[member][2])
-      F = [f for f in gens(IX) if !(f in IZ)]
+      #F = [f for f in gens(IX) if !(f in IZ)]
       IX_deriv_temp = [[pseudo_diff(F[k], j, A, detM, IZ, systemOfParameters), k] for j in 1:length(systemOfParameters) for k in 1:length(F)]
-      IX_deriv = vcat(IX_deriv, IX_deriv_temp)
       # don't know how to "saturate a vector". Good bye time efficiency. Also: Bye bye units.
       for i in 1:length(IX_deriv) # saturating w.r.t. detM
         if !is_zero(IX_deriv[i][1])
-          IX_deriv[i][1] = gens(saturation(ideal(R, IX_deriv[i][1]), ideal(R, [detM])))[1]
+          IX_deriv_temp[i][1] = gens(saturation(ideal(R, IX_deriv_temp[i][1]), ideal(R, [detM])))[1]
         end
       end
+      IX_deriv = vcat(IX_deriv, IX_deriv_temp)
     end
     return IX_deriv
   else
@@ -751,24 +751,9 @@ function loc_greq_b(IZ::Ideal, IX::Ideal, b::Int64)
   temp = IX
   retList = [temp]
 
-  char = get_char(R)
-
-  # einfach immer base_ring benutzen?
-
   # case IZ == <0>
   if IZ == ideal(R,[zero(R)])
-    if char == 0
-      for i in 1:b-1
-        temp = loc_greq_2(IZ,temp)
-        if one(R) in temp
-          return (retList)
-        end
-        retList = vcat(retList,[temp])
-        # ALTERNATIVE: not checking for one(R) in temp and just always add temp to retList. 
-        # And what's about appling standard_basis on a regular basis. Is it worth/necessary?
-        # retList = vcat(retList,[temp])
-      end
-    else
+    if base_ring == ZZ
       DiffList = hasse_deriv(IZ, IX) # no iteration needed, hasse_deriv already returns all derivatives
       DiffListL = length(DiffList)
       if DiffListL>=b 
@@ -776,6 +761,14 @@ function loc_greq_b(IZ::Ideal, IX::Ideal, b::Int64)
       else
         # return (vcat(DiffList,[ideal(R,[one(R)]) for i in DiffListL+1:b]))
         return (DiffList)
+      end
+    else
+      for i in 1:b-1
+        temp = loc_greq_2(IZ,temp)
+        if one(R) in temp
+          return (retList)
+        end
+        retList = vcat(retList,[temp])
       end
     end
     return (retList) # Liste zurückgeben der Ideale 
@@ -980,9 +973,10 @@ function non_regular_locus(IZ::Ideal, IX::Ideal)
 
   DeltaIX = loc_greq_2(IZ, IX)
   # nonRegLocList = empty([IX]) # Sammle alle Orte >= 2 
-  nonRegLocList = [IZ] # Sammle alle Orte >= 2   
+  nonRegLocList = empty([IZ]) # Sammle alle Orte >= 2   
 
   if one(R) in DeltaIX
+    println("# Delta(IX) == <1>")
     # gens of IX that aren't in IZ
     gensIX = [f for f in gens(IX) if !(f in gens(IZ))]  
     IXderivAll = empty([gensIX[1], 1])
@@ -1016,7 +1010,7 @@ function non_regular_locus(IZ::Ideal, IX::Ideal)
     for i in unit
       IZ = IZ + ideal(R, [gensIX[IXderivAll[i][2]]])
       nonRegLocList = push!(nonRegLocList, non_regular_locus(IZ, IX))
-      println("### Interiere non_regular_locus(IZ, IX) mit IZ = ", IZ)
+      #println("### Interiere non_regular_locus(IZ, IX) mit IZ = ", IZ)
     end
     tempIXderivAll = IXderivAll[noUnit]
     # is there still a 1-generating linear combination?
@@ -1028,18 +1022,47 @@ function non_regular_locus(IZ::Ideal, IX::Ideal)
         if linearCombi[k] != zero(R)
           IZ = IZ + ideal(R, [gensIX[tempIXderivAll[k][2]]])
           nonRegLocList = push!(nonRegLocList, non_regular_locus(IZ, IX))
-          println("### Interiere non_regular_locus(IZ, IX) mit IZ = ", IZ)
+          #println("### Interiere non_regular_locus(IZ, IX) mit IZ = ", IZ)
         end
       end
     end
   else
+    println("# Delta(IX) != <1>")
     # Was passiert, wenn DeltaIX nicht 1 ist? 
     # Wird einfach der Ort der Ordnung 2 genommen und nicht weiter Iteriert?
     push!(nonRegLocList, DeltaIX)
+    gensIX = [f for f in gens(IX) if !(f in gens(IZ))]  
+    IXderivAll = empty([gensIX[1], 1])
+    if base_ring(R) == ZZ 
+      PrimeList = interesting_primes(IZ, IX)
+      if length(PrimeList) == 0
+        IXderivAll = ideal_diff_all(IZ, IX)
+      else
+        for p in PrimeList
+          JX = replace_coeffs(IX, p)
+          JZ = replace_coeffs(IZ, p)
+          JXderivAll = ideal_diff_all(JZ, JX)
+          Vars = vcat(gens(R), R(p))
+          # IXderivAll = vcat(IXderivAll, [evaluate(f, Vars) for f in JXderivAll if !(evaluate(f, Vars) in IXderivAll)])
+          IXderivAll = vcat(IXderivAll, [[evaluate(JXderivAll[i][1], Vars), JXderivAll[i][2]] for i in 1:length(JXderivAll)])
+        end
+      end
+    else
+      IXderivAll = ideal_diff_all(IZ, IX)
+    end
+
+    # ueberdeckung = 
+    # rekursiver aufruf non_regular_locus mit neuem IZ
+    for f in gensIX
+      IZ = IZ + ideal(R, [f])
+      #println("### Interiere non_regular_locus(IZ, IX) mit IZ = ", IZ)
+      nonRegLocList = push!(nonRegLocList, non_regular_locus(IZ, IX))      
+    end
   end
   # getting rid of all ideals in nonRegLocList which are equal to <1>
-  nonRegLocList = [I in nonRegLocList if !(is_one(I))]
-  return radical(sum(nonRegLocList))
+  # nonRegLocList = [I for I in nonRegLocList if !(is_one(I))]
+  returnIdeal = radical(intersect(nonRegLocList))
+  return radical(returnIdeal + IZ)
 end
 
 ####################################################################################

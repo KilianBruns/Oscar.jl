@@ -405,6 +405,7 @@ R,(x, y, z) = polynomial_ring(QQ, ["x", "y", "z"])
 R,(x, y, z) = polynomial_ring(ZZ, ["x", "y", "z"])
 IZ = ideal(R, zero(R))
 IX = IZ + ideal(R, [x, y^2 - z^2])
+IX = IZ + ideal(R, [x, (y^2 - z^2)*(y^2 + z^2 - 1)])
 is_regular(IZ, IX)
 non_regular_locus(IZ, IX)
 
@@ -415,6 +416,20 @@ IX = IZ + ideal(R, [x, v, w, y^2 - z^2])
 is_regular(IZ, IX)
 non_regular_locus(IZ, IX)
 
+R,(x, y, z) = polynomial_ring(QQ, ["x", "y", "z"])
+R,(x, y, z) = polynomial_ring(ZZ, ["x", "y", "z"])
+IZ = ideal(R, zero(R))
+IX = IZ + ideal(R, [x^2 + y^2, (x - y)^3 + z^3])
+is_regular(IZ, IX)
+non_regular_locus(IZ, IX)
+
+R,(x, y, z) = polynomial_ring(QQ, ["x", "y", "z"])
+IZ = ideal(R, zero(R))
+IX = IZ + ideal(R, [y^2 - (x + 1)^3, y^2 + (x - 1)^3])
+IX = IZ + ideal(R, [(y^2 - (x + 1)^3) * ( y^2 + (x - 1)^3)])
+is_regular(IZ, IX)
+non_regular_locus(IZ, IX)
+
 # EXPAMLES from the papers
 
 # 2.5
@@ -422,7 +437,7 @@ R,(x, y, z) = polynomial_ring(ZZ, ["x", "y", "z"])
 IZ = ideal(R, [zero(R)])
 IX = ideal(R, [x^2 - y^2*z])
 is_regular(IZ, IX)
-non_regular_locus(IX)
+non_regular_locus(IZ, IX)
 
 # 2.7
 R,(v, w, x, y, z) = polynomial_ring(ZZ, ["v", "w", "x", "y", "z"])
@@ -433,35 +448,35 @@ Rloc, iota = localization(R, S)
 IZ = ideal(Rloc, [zero(R)])
 IX = ideal(Rloc, [p, v, w^2 - y^2, z^5 - y^2*x^5])
 is_regular(IZ, IX)
-non_regular_locus(IX)
+non_regular_locus(IZ, IX)
 
 # 2.14
 R,(x, y) = polynomial_ring(ZZ, ["x", "y"])
 IZ = ideal(R, [zero(R)])
 IX = ideal(R, [x^2 -  y^3*5^7*(y - 2)^4])
 is_regular(IZ, IX)
-non_regular_locus(IX)
+non_regular_locus(IZ, IX)
 
 # 3.2
 R,(u, v) = polynomial_ring(ZZ, ["u", "v"])
 IZ = ideal(R, [zero(R)])
 IX = ideal(R, [12 - u*v^2])
 is_regular(IZ, IX)
-non_regular_locus(IX) # returns <2, v>
+non_regular_locus(IZ, IX) # returns <2, v>
 
 # 4.3  # 4.8  # 4.17
 R, (x, y, z) = polynomial_ring(ZZ, ["x", "y", "z"])
 IZ = ideal(R, [x - 4y + 6z])
 IX = IZ + ideal(R, [3x - y + 7z])
 is_regular(IZ, IX)
-non_regular_locus(IX) # returns <11, y - z, x + 2*z>
+non_regular_locus(IZ, IX) # returns <11, y - z, x + 2*z>
 
 # 4.7
 R,(x, y) = polynomial_ring(ZZ, ["x", "y"])
 IZ = ideal(R, [zero(R)])
 IX = ideal(R, [x^2 - 5^9*y^3])
 is_regular(IZ, IX)
-non_regular_locus(IX) # returns <5*y, x>
+non_regular_locus(IZ, IX) # returns <5*y, x>
 
 # 4.9
 R,(x, y, z) = polynomial_ring(ZZ, ["x", "y", "z"])
@@ -469,21 +484,21 @@ p = 3
 IZ = ideal(R, [p - x^p])
 IX = IZ + ideal(R, [z^2 + x^p*y])
 is_regular(IZ, IX)
-non_regular_locus(IX) # returns <p, z, x>
+non_regular_locus(IZ, IX) # returns <p, z, x>
 
 # 4.10
 R,(x, y) = polynomial_ring(ZZ, ["x", "y"])
 IZ = ideal(R, [zero(R)])
 IX = ideal(R, [3^2*x^2 - 5^2*y^2])
 is_regular(IZ, IX)
-non_regular_locus(IX) # returns <10*y, 3*x - 5*y, x*y + 5*y^2>
+non_regular_locus(IZ, IX) # returns <10*y, 3*x - 5*y, x*y + 5*y^2>
 
 # 4.15
 R,(x, y) = polynomial_ring(ZZ, ["x", "y"])
 IZ = ideal(R, [zero(R)])
 IX = ideal(R, [3^2*5^2 + 5*x*y + x^3*y^3])
 is_regular(IZ, IX)
-non_regular_locus(IX) # returns <15, 5*y, 5*x, x*y>
+non_regular_locus(IZ, IX) # returns <15, 5*y, 5*x, x*y>
 
 # 4.16
 R,(x, y, z) = polynomial_ring(ZZ, ["x", "y", "z"])
@@ -491,7 +506,7 @@ p = 3
 IZ = ideal(R, [zero(R)])
 IX = IZ + ideal(R, [x^2 - y^17, p^5 - y^2*z^6])
 is_regular(IZ, IX)
-non_regular_locus(IX)
+non_regular_locus(IZ, IX)
 
 IX = ideal(R, [(x^2 + y^2 - z^2) * (x^2 - y^2 + z^2) * (-x^2 + y^2 + z^2)])
 c = 81//50 # etwa goldener Schnitt
