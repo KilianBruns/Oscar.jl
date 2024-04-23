@@ -828,7 +828,7 @@ function is_regular(IZ::Ideal, IX::Ideal)
   R = base_ring(IZ)
   base_ring(IX) === R || error("IZ and IX need to be defined in the same ring")
   issubset(IZ, IX) || error("IZ needs to be a subset of IX.")
-  IX == radical(IX) || (IX = radical(IX))
+  IX == radical(IX) || (IX = radical(IX)) # V(IX) = V(radical(IX))
 
   # is_zero(IZ) && return is_regular(IX) # is_regular(IX) is redundand
   # base case of the recursion
